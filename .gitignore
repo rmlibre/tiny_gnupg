@@ -1,0 +1,10 @@
+.pytest_cache
+__pycache__
+openpgp-revocs.d
+private-keys-v1.d
+pubring.kbx
+pubring.kbx~
+random_seed
+trustdb.gpg
+venv
+env

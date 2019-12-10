@@ -1,0 +1,6 @@
+recursive-include tests *
+recursive-include licenses *
+recursive-include tiny_gnupg *
+include LICENSE
+include CHANGES.md
+include README.rst
