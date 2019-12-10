@@ -12,6 +12,7 @@ import os
 import sys
 import pytest
 import pathlib
+from shlex import quote
 from aiohttp import ClientSession
 from aiohttp_socks import SocksConnector
 
@@ -20,17 +21,15 @@ sys.path.append(os.getcwd() + "/../")
 from tiny_gnupg import GnuPG
 
 
-username = "testing_user"
-email = "testing.user@tests.net"
-passphrase = "test_passphrase"
-relative_gpg_path = "../tiny_gnupg/gpghome/gpg2"
-
-
 @pytest.fixture(scope="module")
 def gpg():
     print("setup".center(15, "-"))
+    username = "testing_user"
+    email = "testing.user@tests.net"
+    passphrase = "test_passphrase"
+    relative_gpg_path = "../tiny_gnupg/gpghome"
     gpg = GnuPG(username, email, passphrase)
-    gpg.path = gpg.format_homedir(relative_gpg_path)
+    gpg.set_homedir(relative_gpg_path)
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -69,3 +68,17 @@ def test_command(gpg):
     for option in options:
         assert option in command
         assert option in passphrase_command
+        command.remove(option)
+        assert command == gpg.command()
+        passphrase_command.remove(option)
+        assert passphrase_command == gpg.command(with_passphrase=True)
+    unsafe_shell_options = ["'\'nasa/\asdas\dasd/", "echo 'awdadwa'; ls"]
+    command = gpg.command(*unsafe_shell_options)
+    for option in unsafe_shell_options:
+        assert option not in command
+        assert quote(option) in command
+        assert gpg.read_output(["echo", quote(option)]) == quote(option) + "\n"
+
+
+
+

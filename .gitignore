@@ -1,3 +1,4 @@
+tiny_gnupg.egg-info
 .pytest_cache
 __pycache__
 openpgp-revocs.d
@@ -8,3 +9,5 @@ random_seed
 trustdb.gpg
 venv
 env
+build
+dist

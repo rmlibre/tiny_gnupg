@@ -109,7 +109,7 @@ class GnuPG:
     def read_output(self, command=None, inputs=b"", shell=False):
         return check_output(command, input=inputs, shell=shell).decode()
 
-    def gen_key(self, main_key=True):
+    def gen_key(self):
         command = [
             self.executable,
             "--homedir",
@@ -273,4 +273,3 @@ class GnuPG:
     def text_export(self, uid=""):
         command = self.command("-a", "--export", uid)
         return self.read_output(command)
-

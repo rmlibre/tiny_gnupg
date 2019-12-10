@@ -20,7 +20,7 @@ with open("README.rst", "r") as readme:
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.2.3",
+    version="0.2.4",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
@@ -34,6 +34,7 @@ setup(
         "Natural Language :: English",
         "Development Status :: 4 - Beta",
         "Topic :: Internet",
+        "Topic :: Internet :: WWW/HTTP",
         "Topic :: System :: Networking",
         "Topic :: Adaptive Technologies",
         "Topic :: Communications",
@@ -46,5 +47,13 @@ setup(
         "Intended Audience :: Information Technology",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     ],
+    install_requires=[
+        "pathlib",
+        "aiohttp",
+        "aiofiles",
+        "aiocontext",
+        "aiohttp_socks",
+    ],
+    tests_require=["pytest"],
     packages=find_packages(),
 )
