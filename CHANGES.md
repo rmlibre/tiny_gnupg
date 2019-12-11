@@ -1,9 +1,27 @@
-# Changes for version 0.2.4
+# Changes for version 0.2.5
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program is only safely compatible with keys that are also created with this program. That's because the key and terminal parsing is reliant on specific metadata (like the key comment and type) to be the same across all encountered keys.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We are still in unstable and have to build out our test suite. Contributions welcome.
+## Minor Changes
+- Typos, redundancies and naming inaccuracies fixed around the code and documentation.
+- Tests updated and added to.
+- Changed `raw_network_export()` and `raw_network_verify()` methods into `raw_api_export()` and `raw_api_verify()`, respectively. This was done for more clarity as to what those methods are doing.
+## Major Changes
+- Added `sign(message)` and `verify(message)` methods.
+- Changed the `keyserver` and `searchserver` attributes into properties so that custom `port` attribute changes are now reflected in the constructed url, and the search string used by a custom keyserver can also be reflected.
+- Moved all command validation to the `read_output()` method which simplifies the construction of `command()` and will automatically `shlex.quote()` all commands, even those hard-coded into the program.
+- Fixed bug in `set_homedir()` which did not construct the default gpghome directory string correctly depending on where the current working directory of the calling script was.
+- Added `local_user` kwarg to `encrypt()` and `sign()` so a user can specify which key to use for signing messages, as gnupg automatically signs with whatever key it views as the default user key. Instead, we assume mesasges are to be signed with the key associated with the email address of a GnuPG class instance, or the key defined by the `local_user` uid if it is passed.
+- Fixed --list-keys terminal output parsing to successfully parse and parameterize the output into email addresses and fingerprints.
+- Added `delete()` method for removing both public and private keys from the local keyring. This method still requires some user interaction because a system pinentry-type dialog box opens up to confirm deletion. Finding a way to automate this to avoid user interaction is in the work.
+- Added automating behavior to the `sign()` and `encrypt()` methods so that keys which haven't been verified will still be used. This is done by passing "y" (yes) to the terminal during the process of the command.
+
+
+# Changes for version 0.2.4
+## Known Issues
+- Same as foreward release.
 ## Minor Changes
 - Updated `setup.py` with more package information.
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
