@@ -4,3 +4,10 @@ recursive-include tiny_gnupg *
 include LICENSE
 include CHANGES.md
 include README.rst
+exclude tiny_gnupg/gpghome/pubring.kbx
+exclude tiny_gnupg/gpghome/pubring.kbx~
+exclude tiny_gnupg/gpghome/random_seed
+exclude tiny_gnupg/gpghome/sshcontrol
+exclude tiny_gnupg/gpghome/trustdb.gpg
+recursive-exclude tiny_gnupg/gpghome/private-keys-v1.d *
+recursive-exclude tiny_gnupg/gpghome/openpgp-revocs.d *
