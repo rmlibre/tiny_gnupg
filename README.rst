@@ -73,7 +73,7 @@ Usage Example
     # Then Alice can simply receive the encrypted message and decrypt it ->
     decrypted_msg = gpg.decrypt(encrypted_message)
 
-On most systems, because of a bug in GnuPG_, email verification will be necessary for others to import the keys this package creates from the keyserver. Unless the fingerprint of the key is queried, since all other uid information is stripped until the email address is verified. We will replace the gpg2 executable as soon as a patch becomes available.
+On most systems, because of a bug in GnuPG_, email verification of uploaded keys will be necessary for others to import them from the keyserver. That's because GnuPG will throw an error immediately upon trying to import keys with their uid information stripped off. We will replace the gpg2 executable as soon as a patch becomes available upstream.
 If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The executable can be found at package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute.
 
 .. _GnuPG: https://dev.gnupg.org/T4393
