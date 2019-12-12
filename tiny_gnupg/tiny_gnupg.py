@@ -39,12 +39,12 @@ class GnuPG:
         command = ["chmod", "-R", "700", self.home]
         return self.read_output(command)
 
-    def format_homedir(self, path="gpghome"):
+    def format_homedir(self, path=FILE_PATH):
         return Path(path).absolute().as_uri().replace("file://", "")
 
     def set_fingerprint(self, uid=""):
         try:
-            self.fingerprint = self.key_fingerprint(email)
+            self.fingerprint = self.key_fingerprint(uid)
         except:
             self.fingerprint = ""
 
@@ -65,6 +65,14 @@ class GnuPG:
     @property
     def keyserver(self):
         return f"{self._keyserver}:{self.port}/"
+
+    @property
+    def keyserver_export_api(self):
+        return self.keyserver + "vks/v1/upload"
+
+    @property
+    def keyserver_verify_api(self):
+        return self.keyserver + "vks/v1/request-verify"
 
     @property
     def searchserver(self):
@@ -125,7 +133,9 @@ class GnuPG:
 
     def read_output(self, command=None, inputs=b"", shell=False):
         return check_output(
-            [quote(part) for part in command], input=inputs, shell=shell
+            [quote(part) for part in command],
+            input=inputs,
+            shell=shell,
         ).decode()
 
     def gen_key(self):
@@ -181,14 +191,27 @@ class GnuPG:
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
 
+    def trust(self, uid="", level=4, local_user=""):
+        if not 1 <= int(level) <= 4:
+            raise ValueError("Trust levels must be between 1 and 4.")
+        command = self.command(
+            "--edit-key",
+            "--local-user",
+            local_user if local_user else self.email,
+            "--command-fd",
+            "0",
+            uid,
+        )
+        inputs = self.encode_inputs("trust", str(level))
+        return self.read_output(command, inputs)
 
-    def encrypt(self, message="", uid="", local_user=""):
+    def encrypt(self, message="", uid="", sign=True, local_user=""):
         command = self.command(
             "--command-fd",
             "0",
             "--local-user",
             local_user if local_user else self.email,
-            "-esar",
+            "-esar" if sign else "-ear",
             uid,
             with_passphrase=True,
         )
@@ -215,11 +238,20 @@ class GnuPG:
         inputs = self.encode_inputs(message)
         return self.read_output(command, inputs)
 
-    def raw_list_keys(self, uid=""):
+    def raw_list_keys(self, uid="", local_user=""):
         if uid:
-            command = self.command("--list-keys", uid)
+            command = self.command(
+                "--local-user",
+                local_user if local_user else self.email,
+                "--list-keys",
+                uid,
+            )
         else:
-            command = self.command("--list-keys")
+            command = self.command(
+                "--local-user",
+                local_user if local_user else self.email,
+                "--list-keys",
+            )
         return self.read_output(command)
 
     def list_keys(self, uid=""):
@@ -312,7 +344,7 @@ class GnuPG:
 
     async def raw_api_export(self, uid=""):
         key = self.text_export(uid)
-        url = self.keyserver + "vks/v1/upload"
+        url = self.keyserver_export_api
         print(f"contacting: {url}")
         print(f"exporting:\n{key}")
         payload = {"keytext": key}
@@ -320,7 +352,7 @@ class GnuPG:
             return await response.text()
 
     async def raw_api_verify(self, payload=""):
-        url = self.keyserver + "vks/v1/request-verify"
+        url = self.keyserver_verify_api
         print(f"sending verification to: {url}")
         async with self.network_post(url, json=payload) as response:
             return await response.text()

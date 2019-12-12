@@ -1,13 +1,13 @@
 tiny_gnupg - A small-as-possible solution for handling GnuPG ECC keys.
 ======================================================================
-This project has evolved quickly with the achievement of fully automated,
-programatic access to gpg's functionality. It is now in unstable beta. 
-The aim is for a small, simple & intuitive wrapper for creating and using 
-GnuPG's Ed-25519 curve keys. We are in favor of reducing code size and 
-complexity with strong and bias defaults over flexibility in the api. 
+A small, simple & intuitive wrapper for creating, using and managing
+GnuPG's Ed-25519 curve keys. We are in favor of reducing code size and
+complexity with strong and bias defaults over flexibility in the api.
 Contributions welcome.
 
-This package is only seeking to be compatible with linux systems.
+This package is only seeking to be compatible with linux systems, and
+is currently in unstable beta. It works like a charm, but there's likely
+bugs floating around, and the api is subject to change.
 
 
 Usage Example
@@ -53,7 +53,7 @@ Usage Example
 
     # Let's encrypt a message to Alice, whose public key is stored
     # on keys.openpgp.org/.
-    # We can import Alice's key from the keyserver (This requires 
+    # We can import Alice's key from the keyserver (This requires
     # a tor system installation. Or an open tor browser, and the tor_port
     # attribute set to 9150) ->
     import asyncio
@@ -61,21 +61,21 @@ Usage Example
     run = asyncio.get_event_loop().run_until_complete
     run(gpg.network_import("alice@email.domain"))
 
-    # Then encrypt a message with Alice's key and sign it ->    
+    # Then encrypt a message with Alice's key and sign it ->
     msg = "So, what's the plan this Sunday, Alice?"
     encrypted_message = gpg.encrypt(msg, "alice@email.domain") # also signs the message
 
     # We could directly send a copy of our key to Alice. Or, upload the key
-    # to the keyserver. Alice will need a copy of the key so the signature 
+    # to the keyserver. Alice will need a copy of the key so the signature
     # on the message can be verified ->
     run(gpg.network_export(gpg.fingerprint))
 
     # Then Alice can simply receive the encrypted message and decrypt it ->
     decrypted_msg = gpg.decrypt(encrypted_message)
 
-On most systems, because of a bug in GnuPG_, email verification will be necessary for others to import the keys this package creates from the keyserver. We will replace the gpg2 executable as soon as a patch becomes available.
+On most systems, because of a bug in GnuPG_, email verification will be necessary for others to import the keys this package creates from the keyserver. Unless the fingerprint of the key is queried, since all other uid information is stripped until the email address is verified. We will replace the gpg2 executable as soon as a patch becomes available.
 If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The executable can be found at package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute.
-    
+
 .. _GnuPG: https://dev.gnupg.org/T4393
 
 
@@ -86,11 +86,11 @@ Extra Example
 .. code:: python
 
     #
-    # Since we use SOCKSv5 networking over tor, and the aiohttp + aiohttp_socks 
-    # libraries, the tor networking interface is also available to users. These
+    # Since we use SOCKSv5 over tor for all of our networking, as well
+    # as the user-friendly aiohttp + aiohttp_socks libraries, the tor
+    # networking interface is also available to users. These utilities
     # allow arbitrary POST and GET requests to clearnet, or onionland,
     # websites ->
-    #
     import asyncio
     from tiny_gnupg import GnuPG
 
@@ -113,8 +113,28 @@ Extra Example
     # Check your ip address for fun ->
     ip_addr = run(read_url("https://icanhazip.com/"))
 
+
     # POST requests can also be sent with the network_post() method.
-    # These work off instances of aiohttp.ClientSession. To learn more
-    # about how to use their post and get requests, you can read the docs
-    # here: 
+    # Let's use a POST request to send the keyserver a new key we
+    # create ->
+    async def post(gpg, url, payload=""):
+        async with gpg.network_post(url, json=payload) as response:
+            return await response.text()
+
+
+    gpg = GnuPG("username", "username@user.net", "test_user_passphrase")
+    gpg.gen_key()
+    url = gpg.keyserver_export_api
+    payload = {"keytext": gpg.text_export(gpg.fingerprint)}
+    api_token_json = run(post(gpg, url, payload))
+    # And there we have it, it's super simple. And these requests have
+    # the added benefit of being completely routed through tor. The
+    # keyserver here also has a v3 onion address which we use to query,
+    # upload, and import keys. This provides a nice, default layer of
+    # privacy to our communication needs. Have fun little niblets!
+
+
+    # These networking tools work off instances of aiohttp.ClientSession.
+    # To learn more about how to use their post and get requests, you
+    # can read the docs here:
     # https://docs.aiohttp.org/en/stable/client_advanced.html#client-session

@@ -44,6 +44,7 @@ async def fetch(gpg, url):
 
 def test_networking(gpg):
     dev_email = "gonzo.development@protonmail.ch"
+    dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     key_url = run(gpg.search(dev_email))
     assert "\n" not in key_url
     assert " " not in key_url
@@ -51,20 +52,22 @@ def test_networking(gpg):
     assert ">" not in key_url
     key = run(fetch(gpg, key_url))
     gpg.text_import(key)
+    assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
+    assert dev_fingerprint == fingerprint
+    assert fingerprint == next(iter(gpg.list_keys(dev_fingerprint)))
     email = gpg.key_email(fingerprint)
     assert dev_email == email
     assert email == gpg.list_keys(dev_email)[fingerprint]
     key_from_email = gpg.text_export(email)
     key_from_fingerprint = gpg.text_export(fingerprint)
     assert key_from_email == key_from_fingerprint
-    # For some reason, the key returned by the key server has
-    # different bits, they're changed around from thos that are
-    # uploaded. This seems like a bug, and which bit are being changed
-    # is an open question at the moment. It most probably has to do
-    # with the fact that they remove user id information until an
-    # email address is confirmed, and they process of reattaching the
-    # user id information is buggy or undeterministic.
+    # The key returned by the keyserver can have different bits due to
+    # different versions of encoding of header information on the key.
+    # The folks over at keys.openpgp.org were able to deduce the issue
+    # after we sent them a bug report. GnuPG currently has "newer" and
+    # "older" style header formatting, which leads to inconsistent
+    # results when handling newer ECC keys.
 
 
 def test_instance(gpg):
@@ -105,4 +108,3 @@ def test_command(gpg):
         assert command == gpg.command()
         passphrase_command.remove(option)
         assert passphrase_command == gpg.command(with_passphrase=True)
-
