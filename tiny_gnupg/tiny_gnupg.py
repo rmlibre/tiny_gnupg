@@ -21,7 +21,7 @@ from aiocontext import async_contextmanager
 from aiohttp_socks import SocksConnector, SocksVer
 
 
-FILE_PATH = Path(__file__).parent / "gpghome"
+HOME_PATH = Path(__file__).parent / "gpghome"
 
 
 class GnuPG:
@@ -33,13 +33,13 @@ class GnuPG:
         self.set_fingerprint(email)
         self.set_network_variables()
 
-    def set_homedir(self, path=FILE_PATH):
+    def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
         self.executable = self.home + "/gpg2"
         command = ["chmod", "-R", "700", self.home]
         return self.read_output(command)
 
-    def format_homedir(self, path=FILE_PATH):
+    def format_homedir(self, path=HOME_PATH):
         return Path(path).absolute().as_uri().replace("file://", "")
 
     def set_fingerprint(self, uid=""):
@@ -192,7 +192,8 @@ class GnuPG:
         return self.read_output(command, inputs)
 
     def trust(self, uid="", level=5, local_user=""):
-        if not 1 <= int(level) <= 5:
+        level = int(level)
+        if not 1 <= level <= 5:
             raise ValueError("Trust levels must be between 1 and 5.")
         command = self.command(
             "--edit-key",
@@ -258,7 +259,7 @@ class GnuPG:
         return self.format_list_keys(self.raw_list_keys(uid))
 
     def format_list_keys(self, raw_list_keys_terminal_output):
-        keys = raw_list_keys_terminal_output.split("pub")
+        keys = raw_list_keys_terminal_output.split("\npub ")
         fingerprints = [
             part[part.find("\nuid") - 40 : part.find("\nuid")]
             for part in keys
@@ -313,19 +314,19 @@ class GnuPG:
         return part[: part.find("</a>")]
 
     async def network_import(self, uid=""):
-        id_link = await self.search(uid)
-        if not id_link:
+        key_link = await self.search(uid)
+        if not key_link:
             raise FileNotFoundError("No key found on server.")
-        print(f"key location: {id_link}")
-        async with self.network_get(id_link) as response:
+        print(f"key location: {key_link}")
+        async with self.network_get(key_link) as response:
             key = await response.text()
         if not key:
             raise IOError("Failure to download key from server.")
         print(f"downloaded:\n{key}")
         return self.text_import(key)
 
-    async def file_import(self, filename="", mode="r"):
-        async with aiofiles.open(filename, mode) as keyfile:
+    async def file_import(self, path="", mode="r"):
+        async with aiofiles.open(path, mode) as keyfile:
             key = keyfile.read()
         return self.text_import(key)
 
@@ -364,7 +365,7 @@ class GnuPG:
             "token": response["token"],
         }
         response = json.loads(await self.raw_api_verify(payload))
-        print(f"check {payload['addresses']} for confirmation.")
+        print(f"check {payload['addresses'][0]} for confirmation.")
         return response
 
     async def file_export(self, path="", uid="", mode="w+"):
