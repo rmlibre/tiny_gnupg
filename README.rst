@@ -36,7 +36,6 @@ Usage Example
     command = gpg.command(*options)
     inputs = gpg.encode_inputs("Message to myself")
     output = gpg.read_output(command, inputs)
-
     # If a command would invoke the need for a passphrase, the with_passphrase
     # kwarg (gpg.command(*options, with_passphase=True)) can be set to True.
     # The passphrase then needs to be the first arg passed to encode_inputs
@@ -53,7 +52,7 @@ Usage Example
 
     # Let's encrypt a message to Alice, whose public key is stored
     # on keys.openpgp.org/.
-    # We can import Alice's key from the keyserver (This requires
+    # First, we'll import Alice's key from the keyserver (This requires
     # a tor system installation. Or an open tor browser, and the tor_port
     # attribute set to 9150) ->
     import asyncio
@@ -63,18 +62,21 @@ Usage Example
 
     # Then encrypt a message with Alice's key and sign it ->
     msg = "So, what's the plan this Sunday, Alice?"
-    encrypted_message = gpg.encrypt(msg, "alice@email.domain") # also signs the message
+    encrypted_message = gpg.encrypt(msg, "alice@email.domain", sign=True)
 
-    # We could directly send a copy of our key to Alice. Or, upload the key
-    # to the keyserver. Alice will need a copy of the key so the signature
-    # on the message can be verified ->
+    # We could directly send a copy of our key to Alice, or upload it to
+    # the keyserver. Alice will need a copy so the signature on the
+    # message can be verified ->
     run(gpg.network_export(gpg.fingerprint))
+
+    # Alice could import our key ->
+    run(gpg.network_import("username@user.net"))
 
     # Then Alice can simply receive the encrypted message and decrypt it ->
     decrypted_msg = gpg.decrypt(encrypted_message)
 
 On most systems, because of a bug in GnuPG_, email verification of uploaded keys will be necessary for others to import them from the keyserver. That's because GnuPG will throw an error immediately upon trying to import keys with their uid information stripped off. We will replace the gpg2 executable as soon as a patch becomes available upstream.
-If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The executable can be found at package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute.
+If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The package's executable can be found at package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute.
 
 .. _GnuPG: https://dev.gnupg.org/T4393
 
@@ -103,7 +105,7 @@ Extra Example
 
     run = asyncio.get_event_loop().run_until_complete
 
-    # Now we can read webpages with get requests ->
+    # Now we can read webpages with GET requests ->
     page_html = run(read_url("https://keys.openpgp.org/"))
 
     # Let's try onionland ->
@@ -135,6 +137,6 @@ Extra Example
 
 
     # These networking tools work off instances of aiohttp.ClientSession.
-    # To learn more about how to use their post and get requests, you
+    # To learn more about how to use their POST and GET requests, you
     # can read the docs here:
     # https://docs.aiohttp.org/en/stable/client_advanced.html#client-session

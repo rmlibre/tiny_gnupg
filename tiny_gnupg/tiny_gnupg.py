@@ -191,9 +191,9 @@ class GnuPG:
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
 
-    def trust(self, uid="", level=4, local_user=""):
-        if not 1 <= int(level) <= 4:
-            raise ValueError("Trust levels must be between 1 and 4.")
+    def trust(self, uid="", level=5, local_user=""):
+        if not 1 <= int(level) <= 5:
+            raise ValueError("Trust levels must be between 1 and 5.")
         command = self.command(
             "--edit-key",
             "--local-user",
@@ -202,7 +202,7 @@ class GnuPG:
             "0",
             uid,
         )
-        inputs = self.encode_inputs("trust", str(level))
+        inputs = self.encode_inputs("trust", str(level), "y", "save")
         return self.read_output(command, inputs)
 
     def encrypt(self, message="", uid="", sign=True, local_user=""):
