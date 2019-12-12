@@ -1,9 +1,16 @@
-# Changes for version 0.2.6
+# Changes for version 0.2.7
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program is only reliably compatible with keys that are also created with this program. That's because the key and terminal parsing is reliant on specific metadata (like the key comment and type) to be the same across all encountered keys.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We are still in unstable and have to build out our test suite. Contributions welcome.
+## Minor Changes
+- Fixed statement in README.rst describing bug #T4393.
+
+
+# Changes for version 0.2.6
+## Known Issues
+- Same as foreward release.
 ## Minor Changes
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
 - Added a new POST request tutorial to the README.rst.
