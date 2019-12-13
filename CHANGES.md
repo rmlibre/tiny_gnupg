@@ -11,6 +11,7 @@
 - Tests updated and added to.
 ## Major Changes
 - Fixed a bug in `encrypt()` which caused a "y\n" to be prepended to plaintext that was sent to ultimately trusted keys. This was because there's an extra terminal dialog asking for a "y" confirmation that is not there when a key is ultimately trusted.
+- Added a `key_trust(uid)` method to allow easy determination of trust levels set on keys in the local keyring.
 
 
 # Changes for version 0.3.0
