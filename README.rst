@@ -61,6 +61,7 @@ Usage Example
     import asyncio
 
     run = asyncio.get_event_loop().run_until_complete
+
     run(gpg.network_import("alice@email.domain"))
 
     # Then encrypt a message with Alice's key and sign it ->
@@ -81,7 +82,7 @@ Usage Example
 
 On most systems, because of a bug in GnuPG_, email verification of uploaded keys will be necessary for others to import them from the keyserver. That's because GnuPG will throw an error immediately upon trying to import keys with their uid information stripped off. We will replace the gpg2 executable as soon as a patch becomes available upstream.
 
-If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The package's executable can be found at: package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute. Your system gpg2 executable is probably located at: /usr/bin/gpg2. You could also type: whereis gpg2 :to find it as well. If it's not there, then you'll have to install it with your system's equivalent of: sudo apt-get install gnupg2.
+If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The package's executable can be found at: package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute. Your system gpg2 executable is probably located at: /usr/bin/gpg2. You could also type: whereis gpg2 :to find it. If it's not there, then you'll have to install it with your system's equivalent of: sudo apt-get install gnupg2.
 
 .. _GnuPG: https://dev.gnupg.org/T4393
 

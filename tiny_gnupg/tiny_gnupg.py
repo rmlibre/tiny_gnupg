@@ -339,11 +339,11 @@ class GnuPG:
         return part[: part.find("</a>")]
 
     async def network_import(self, uid=""):
-        key_link = await self.search(uid)
-        if not key_link:
+        key_url = await self.search(uid)
+        if not key_url:
             raise FileNotFoundError("No key found on server.")
-        print(f"key location: {key_link}")
-        async with self.network_get(key_link) as response:
+        print(f"key location: {key_url}")
+        async with self.network_get(key_url) as response:
             key = await response.text()
         if not key:
             raise IOError("Failure to download key from server.")

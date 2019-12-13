@@ -1,10 +1,17 @@
-# Changes for version 0.3.2
+# Changes for version 0.3.3
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 - The `delete()` method isn't completely automated. There are system dialogs that pop up asking for user confirmation of the delete process. This isn't ideal, but it's not clear at the moment how to automate those answers.
+## Major Changes
+- Fixed a big bug where the wrong package was imported with the same name as the intended module. AioContext was imported in setuptools, but the package that is needed is asyncio-contextmanager for its aiocontext module. This lead to the program being un-runable due to an import error.
+
+
+# Changes for version 0.3.2
+## Known Issues
+- Same as foreward release.
 ## Minor Changes
 - Rolled back the changes in `trust()` that checked for trust levels on keys to avoid sending an unnecessary byte of data through the terminal. Mostly because the attempted fix did not fix the issue. And the correct fix involves a wide branching of state and argument checking. That runs contrary to the goal of the package for simplicity, so it isn't going to be addressed for now.
 - Edited some of the README.rst tutorials.
