@@ -157,7 +157,9 @@ class GnuPG:
         ]
         inputs = self.encode_inputs(
             self.passphrase,
-            "9",
+            "11",
+            "S",
+            "Q",
             "1",
             "0",
             "y",
@@ -168,6 +170,37 @@ class GnuPG:
         )
         output = self.read_output(command, inputs)
         self.fingerprint = output.strip().split("\n")[-1][-40:]
+        return self.add_subkeys(self.fingerprint)
+
+    def add_subkeys(self, uid=""):
+        command = self.command(
+            "--command-fd",
+            "0",
+            "--edit-key",
+            "--expert",
+            uid,
+            with_passphrase=True,
+        )
+        inputs = self.encode_inputs(
+            self.passphrase,
+            "addkey",
+            "10",
+            "1",
+            "0",
+            "addkey",
+            "11",
+            "A",
+            "S",
+            "Q",
+            "1",
+            "0",
+            "addkey",
+            "12",
+            "1",
+            "0",
+            "save",
+        )
+        return self.read_output(command, inputs)
 
     def delete(self, uid=""):
         """

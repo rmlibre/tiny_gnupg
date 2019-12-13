@@ -8,6 +8,7 @@ pubring.kbx~
 random_seed
 trustdb.gpg
 sshcontrol
+tofu.db
 venv
 env
 build

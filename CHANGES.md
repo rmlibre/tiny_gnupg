@@ -1,9 +1,18 @@
-# Changes for version 0.2.9
+# Changes for version 0.3.0
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
+## Minor Changes
+- Changed MANIFEST.in to a more specific include structure, and a redundant exclude structure, to more confidently keep development environment key material from being uploaded during packaging.
+## Major Changes
+- Overhauled the `gen_key()` which now creates a different set of default keys. We are no longer creating one primary key which does certifying and signing, with one subkey which handles encryption. Instead, we create one certifying primary key, with three subkeys, one each for handling encryption, authentication, and signing. This is a more theoretically secure default key setup, and represents a common best-practice.
+
+
+# Changes for version 0.2.9
+## Known Issues
+- Same as foreward release.
 ## Minor Changes
 - Edited some of the README.rst tutorials
 - Changed `file_import()`'s `filename` kwarg to `path` for clarity.
