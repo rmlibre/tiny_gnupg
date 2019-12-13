@@ -36,6 +36,8 @@ class GnuPG:
     def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
         self.executable = self.home + "/gpg2"
+        if not Path(self.home).exists():
+            Path(self.home).touch()
         command = ["chmod", "-R", "700", self.home]
         return self.read_output(command)
 
