@@ -1,9 +1,21 @@
-# Changes for version 0.3.0
+# Changes for version 0.3.1
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
+## Minor Changes
+- Fixed a bug in `trust()` which caused an extra "y\n" to be sent to the interactive prompt when setting keys as anything but ultimately trusted. This was because there's an extra terminal dialog asking for a "y" confirmation that is not there when a key is being set as ultimately trusted. This didn't have a serious effect other than displaying a "Invalid command  (try 'help')" dialog.
+- Removed `local_user` kwarg from the `raw_list_keys()` and `trust()` methods, as it doesn't seem to matter which "user" perspective views the list of keys or modifies trust. It is very likely always displaying keys from the perspective of the global agent.
+- Typos, redundancies and naming inaccuracies fixed around the code and documentation.
+- Tests updated and added to.
+## Major Changes
+- Fixed a bug in `encrypt()` which caused a "y\n" to be prepended to plaintext that was sent to ultimately trusted keys. This was because there's an extra terminal dialog asking for a "y" confirmation that is not there when a key is ultimately trusted.
+
+
+# Changes for version 0.3.0
+## Known Issues
+- Same as foreward release.
 ## Minor Changes
 - Changed MANIFEST.in to a more specific include structure, and a redundant exclude structure, to more confidently keep development environment key material from being uploaded during packaging.
 ## Major Changes

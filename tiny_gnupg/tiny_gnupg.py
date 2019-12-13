@@ -40,7 +40,7 @@ class GnuPG:
         return self.read_output(command)
 
     def format_homedir(self, path=HOME_PATH):
-        return Path(path).absolute().as_uri().replace("file://", "")
+        return str(Path(path).absolute())
 
     def set_fingerprint(self, uid=""):
         try:
@@ -224,19 +224,15 @@ class GnuPG:
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
 
-    def trust(self, uid="", level=5, local_user=""):
-        level = int(level)
-        if not 1 <= level <= 5:
+    def trust(self, uid="", level=5):
+        level = str(int(level))
+        if not 1 <= int(level) <= 5:
             raise ValueError("Trust levels must be between 1 and 5.")
-        command = self.command(
-            "--edit-key",
-            "--local-user",
-            local_user if local_user else self.email,
-            "--command-fd",
-            "0",
-            uid,
-        )
-        inputs = self.encode_inputs("trust", str(level), "y", "save")
+        command = self.command("--edit-key", "--command-fd", "0", uid)
+        if self.key_trust(uid) != "ultimate":
+            inputs = self.encode_inputs("trust", level, "save")
+        else:
+            inputs = self.encode_inputs("trust", level, "y", "save")
         return self.read_output(command, inputs)
 
     def encrypt(self, message="", uid="", sign=True, local_user=""):
@@ -244,12 +240,15 @@ class GnuPG:
             "--command-fd",
             "0",
             "--local-user",
-            local_user if local_user else self.email,
+            local_user if local_user else self.fingerprint,
             "-esar" if sign else "-ear",
             uid,
             with_passphrase=True,
         )
-        inputs = self.encode_inputs(self.passphrase, "y", message)
+        if self.key_trust(uid) != "ultimate":
+            inputs = self.encode_inputs(self.passphrase, "y", message)
+        else:
+            inputs = self.encode_inputs(self.passphrase, message)
         return self.read_output(command, inputs)
 
     def decrypt(self, message=""):
@@ -260,7 +259,7 @@ class GnuPG:
     def sign(self, message="", local_user=""):
         command = self.command(
             "--local-user",
-            local_user if local_user else self.email,
+            local_user if local_user else self.fingerprint,
             "-as",
             with_passphrase=True,
         )
@@ -272,20 +271,11 @@ class GnuPG:
         inputs = self.encode_inputs(message)
         return self.read_output(command, inputs)
 
-    def raw_list_keys(self, uid="", local_user=""):
+    def raw_list_keys(self, uid=""):
         if uid:
-            command = self.command(
-                "--local-user",
-                local_user if local_user else self.email,
-                "--list-keys",
-                uid,
-            )
+            command = self.command("--list-keys", uid)
         else:
-            command = self.command(
-                "--local-user",
-                local_user if local_user else self.email,
-                "--list-keys",
-            )
+            command = self.command("--list-keys")
         return self.read_output(command)
 
     def list_keys(self, uid=""):
@@ -318,6 +308,11 @@ class GnuPG:
     def key_fingerprint(self, uid=""):
         key = self.list_keys(uid)
         return next(iter(key))
+
+    def key_trust(self, uid=""):
+        key = self.raw_list_keys(uid).replace(" ", "")
+        trust = key[key.find("\nuid[") + 5 :]
+        return trust[: trust.find("]")]
 
     def reset_daemon(self):
         command = [

@@ -8,6 +8,6 @@
 # All rights reserved.
 #
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from .tiny_gnupg import GnuPG, __all__
