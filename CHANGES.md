@@ -6,6 +6,7 @@
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 - The `delete()` method isn't completely automated. There are system dialogs that pop up asking for user confirmation of the delete process. This isn't ideal, but it's not clear at the moment how to automate those answers.
 ## Minor Changes
+<<<<<<< HEAD
 - Added new tests for networking methods.
 - Documentation updates and accuracy fixes.
 ## Major Changes
@@ -14,6 +15,8 @@
 
 # Changes for version 0.3.5
 ## Minor Changes
+=======
+>>>>>>> 69e08e98f9cb1ce518bd7c9f439a8f1b53834ce4
 - Switched the aiocontext package license with the license for asyncio-contextmanager.
 ## Major Changes
 - The packaging issues seem to be resolved. Packaging as v0.3.5-beta, the first release that did not ship completely broken through pip install --user tiny_gnupg.
