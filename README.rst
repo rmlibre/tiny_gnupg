@@ -22,8 +22,9 @@ Usage Example
     passphrase = "test_user_passphrase"
     gpg = GnuPG(username, email, passphrase)
 
-    # This will generate a new combined encryption ed25519 ECC key and
-    # signing/certifying ed25519 ECC key.
+    # This will generate a primary ed25519 ECC certifying key, and three
+    # subkeys, one each for the authentication, encryption, and signing
+    # functionalities.
     gpg.gen_key()
 
     # Now this fingerprint can be used with arbitrary gpg2 commands.
@@ -36,10 +37,12 @@ Usage Example
     command = gpg.command(*options)
     inputs = gpg.encode_inputs("Message to myself")
     output = gpg.read_output(command, inputs)
+
     # If a command would invoke the need for a passphrase, the with_passphrase
     # kwarg (gpg.command(*options, with_passphase=True)) can be set to True.
     # The passphrase then needs to be the first arg passed to encode_inputs
     # (gpg.encode_inputs(passphrase, *other_inputs))
+
 
     # The list of keys in the package's environment can be accessed
     # from the list_keys() method, which returns a dict ->
@@ -69,7 +72,8 @@ Usage Example
     # message can be verified ->
     run(gpg.network_export(gpg.fingerprint))
 
-    # Alice could import our key ->
+    # Alice could now import our key (after we do an email verification
+    # with the keyserver) ->
     run(gpg.network_import("username@user.net"))
 
     # Then Alice can simply receive the encrypted message and decrypt it ->
@@ -83,8 +87,8 @@ If the gpg2 executable doesn't work on your system, replace it with a copy of th
 
 
 
-Extra Example
--------------
+Networking Example
+------------------
 
 .. code:: python
 
@@ -141,3 +145,45 @@ Extra Example
     # To learn more about how to use their POST and GET requests, you
     # can read the docs here:
     # https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+
+
+Extras
+------
+
+.. code:: python
+
+    # It turns out that the encrypt() method automatically signs the
+    # message being encrypted. So, the `sign=False` flag only has to be
+    # passed when a user doesn't want to sign a message ->
+    encrypted_unsigned_message = gpg.encrypt(
+        message="<-- Unknown sender",
+        uid="alice@email.domain",  # sending to alice
+        sign=False,
+    )
+
+    # It also turns out, a user can sign things independently from
+    # encrypting ->
+    signed_data = gpg.sign("maybe a hash of a file?")
+
+    # And verify data as well ->
+    gpg.verify(signed_data)  # throws if invalid
+
+    # Importing key files is also a thing ->
+    import asyncio
+
+    run = asyncio.get_event_loop().run_until_complete
+
+    path_to_file = "/home/user/keyfiles/"
+    run(gpg.file_import(path=path_to_file + "alices_key.asc"))
+
+    # And exporting ->
+    run(gpg.file_export(path=path_to_file, uid=gpg.email))
+
+
+    # When a user is done with a key, it can be deleted from the package
+    # keyring like this ->
+    gpg.delete("username@user.net")  # You'll have to manually click
+                                     # the confirm button, though.
+
+
+

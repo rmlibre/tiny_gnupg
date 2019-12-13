@@ -229,10 +229,7 @@ class GnuPG:
         if not 1 <= int(level) <= 5:
             raise ValueError("Trust levels must be between 1 and 5.")
         command = self.command("--edit-key", "--command-fd", "0", uid)
-        if self.key_trust(uid) != "ultimate":
-            inputs = self.encode_inputs("trust", level, "save")
-        else:
-            inputs = self.encode_inputs("trust", level, "y", "save")
+        inputs = self.encode_inputs("trust", level, "y", "save")
         return self.read_output(command, inputs)
 
     def encrypt(self, message="", uid="", sign=True, local_user=""):
@@ -354,8 +351,9 @@ class GnuPG:
         return self.text_import(key)
 
     async def file_import(self, path="", mode="r"):
+        path = Path(path).absolute()
         async with aiofiles.open(path, mode) as keyfile:
-            key = keyfile.read()
+            key = await keyfile.read()
         return self.text_import(key)
 
     def text_import(self, key=""):
