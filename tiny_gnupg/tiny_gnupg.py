@@ -36,8 +36,6 @@ class GnuPG:
     def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
         self.executable = self.home + "/gpg2"
-        if not Path(self.home).exists():
-            Path(self.home).touch()
         command = ["chmod", "-R", "700", self.home]
         return self.read_output(command)
 
@@ -277,9 +275,6 @@ class GnuPG:
             command = self.command("--list-keys")
         return self.read_output(command)
 
-    def list_keys(self, uid=""):
-        return self.format_list_keys(self.raw_list_keys(uid))
-
     def format_list_keys(self, raw_list_keys_terminal_output):
         keys = raw_list_keys_terminal_output.split("\npub ")
         fingerprints = [
@@ -292,6 +287,9 @@ class GnuPG:
             for fingerprint in fingerprints
         ]
         return dict(zip(fingerprints, emails))
+
+    def list_keys(self, uid=""):
+        return self.format_list_keys(self.raw_list_keys(uid))
 
     def key_email(self, uid=""):
         parts = self.raw_list_keys(uid).replace(" ", "")
@@ -337,7 +335,7 @@ class GnuPG:
         response = await self.raw_search(query)
         if "We found an entry" not in response:
             return ""
-        part = response[response.find(f">{self._keyserver}") + 1:]
+        part = response[response.find(f">{self._keyserver}") + 1 :]
         return part[: part.find("</a>")]
 
     async def network_import(self, uid=""):
@@ -347,13 +345,12 @@ class GnuPG:
         print(f"key location: {key_url}")
         async with self.network_get(key_url) as response:
             key = await response.text()
-        if not key:
+        if not key or " " in key.strip():
             raise IOError("Failure to download key from server.")
         print(f"downloaded:\n{key}")
         return self.text_import(key)
 
     async def file_import(self, path="", mode="r"):
-        path = Path(path).absolute()
         async with aiofiles.open(path, mode) as keyfile:
             key = await keyfile.read()
         return self.text_import(key)
