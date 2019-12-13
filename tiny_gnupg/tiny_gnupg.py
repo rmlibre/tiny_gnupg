@@ -345,7 +345,7 @@ class GnuPG:
         print(f"key location: {key_url}")
         async with self.network_get(key_url) as response:
             key = await response.text()
-        if not key or " " in key.strip():
+        if not key:
             raise IOError("Failure to download key from server.")
         print(f"downloaded:\n{key}")
         return self.text_import(key)

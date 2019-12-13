@@ -12,6 +12,7 @@ import os
 import sys
 import pytest
 import asyncio
+from time import sleep
 from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import SocksConnector
@@ -28,19 +29,21 @@ from tiny_gnupg import GnuPG
 def gpg():
     print("setup".center(15, "-"))
     username = "testing_user"
-    email = "testing_user@testing.org"
+    email = "testing_user@testing.testing"
     passphrase = "test_passphrase"
     relative_gpg_path = PACKAGE_PATH + "/tiny_gnupg/gpghome"
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
+    gpg.reset_daemon()
+    sleep(0.5)
     yield gpg
     print("teardown".center(18, "-"))
 
 
 def test_instance(gpg):
-    assert gpg.gen_key() == ""
+    gpg.gen_key()
     assert gpg.username == "testing_user"
-    assert gpg.email == "testing_user@testing.org"
+    assert gpg.email == "testing_user@testing.testing"
     assert gpg.fingerprint == "" or type(gpg.fingerprint) == str
     assert gpg.passphrase == "test_passphrase"
     assert gpg.home.endswith("gpghome")
@@ -132,6 +135,33 @@ def test_networking(gpg):
     key_from_email = gpg.text_export(email)
     key_from_fingerprint = gpg.text_export(fingerprint)
     assert key_from_email == key_from_fingerprint
+    gpg.text_import(key_from_email)
+    run(gpg.network_import(dev_email))
+    try:
+        assert key == key_from_email
+    except:
+        pass  # removed and/or reencoded uids
+    finally:
+        assert len(gpg.list_keys(dev_email)) == 1
+    run(gpg.network_export(gpg.fingerprint))
+    test_key_url = run(gpg.search(gpg.fingerprint))
+    local_key = gpg.text_export(gpg.fingerprint)
+    network_key = run(fetch(gpg, test_key_url))
+    assert local_key != network_key  # removed and/or reencoded uids
+    try:
+        gpg.text_import(network_key)
+        failed = False
+    except:
+        failed = True  # GnuPG bug #T4393
+    finally:
+        assert failed
+    try:
+        run(gpg.network_import(gpg.fingerprint))
+        failed = False  
+    except:
+        failed = True  # GnuPG bug #T4393
+    finally:
+        assert failed
     # The key returned by the keyserver can have different bits due to
     # different versions of encoding of header information on the key.
     # The folks over at keys.openpgp.org were able to deduce the issue
@@ -141,7 +171,7 @@ def test_networking(gpg):
 
 
 def test_delete(gpg):
-    email = "testing_user@testing.org"
+    email = "testing_user@testing.testing"
     amount_of_test_keys = 0
     for key_email in gpg.list_keys().values():
         if key_email == email:

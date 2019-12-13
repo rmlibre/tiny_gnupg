@@ -1,4 +1,4 @@
-# Changes for version 0.3.5
+# Changes for version 0.3.6
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
@@ -6,28 +6,30 @@
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 - The `delete()` method isn't completely automated. There are system dialogs that pop up asking for user confirmation of the delete process. This isn't ideal, but it's not clear at the moment how to automate those answers.
 ## Minor Changes
-- Switched the aiocontext package license with the
+- Added new tests for networking methods.
+- Documentation updates and accuracy fixes.
+## Major Changes
+- Removed a check in `network_import()` which wasn't useful and was should've been causing problems with imports, even though the tests didn't seem to notice.
+
+
+# Changes for version 0.3.5
+## Minor Changes
+- Switched the aiocontext package license with the license for asyncio-contextmanager.
 ## Major Changes
 - The packaging issues seem to be resolved. Packaging as v0.3.5-beta, the first release that did not ship completely broken through pip install --user tiny_gnupg.
 
 
 # Changes for version 0.3.4
-## Known Issues
-- Same as foreward release.
 ## Major Changes
 - Fixing a major bug in the parameters passed to `setup()` which did not correctly tell setuptools to package the gpghome folder and gpg2 binary. This may take a few releases to troubleshoot and bug fix fully.
 
 
 # Changes for version 0.3.3
-## Known Issues
-- Same as foreward release.
 ## Major Changes
 - Fixed a big bug where the wrong package was imported with the same name as the intended module. AioContext was imported in setuptools, but the package that is needed is asyncio-contextmanager for its aiocontext module. This lead to the program being un-runable due to an import error.
 
 
 # Changes for version 0.3.2
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Rolled back the changes in `trust()` that checked for trust levels on keys to avoid sending an unnecessary byte of data through the terminal. Mostly because the attempted fix did not fix the issue. And the correct fix involves a wide branching of state and argument checking. That runs contrary to the goal of the package for simplicity, so it isn't going to be addressed for now.
 - Edited some of the README.rst tutorials.
@@ -36,8 +38,6 @@
 
 
 # Changes for version 0.3.1
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Fixed a bug in `trust()` which caused an extra "y\n" to be sent to the interactive prompt when setting keys as anything but ultimately trusted. This was because there's an extra terminal dialog asking for a "y" confirmation that is not there when a key is being set as ultimately trusted. This didn't have a serious effect other than displaying a "Invalid command  (try 'help')" dialog.
 - Removed `local_user` kwarg from the `raw_list_keys()` and `trust()` methods, as it doesn't seem to matter which "user" perspective views the list of keys or modifies trust. It is very likely always displaying keys from the perspective of the global agent.
@@ -49,8 +49,6 @@
 
 
 # Changes for version 0.3.0
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Changed MANIFEST.in to a more specific include structure, and a redundant exclude structure, to more confidently keep development environment key material from being uploaded during packaging.
 ## Major Changes
@@ -58,8 +56,6 @@
 
 
 # Changes for version 0.2.9
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Edited some of the README.rst tutorials
 - Changed `file_import()`'s `filename` kwarg to `path` for clarity.
@@ -72,8 +68,6 @@
 
 
 # Changes for version 0.2.8
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Edited some of the README.rst tutorials.
 ## Major Changes
@@ -82,15 +76,11 @@
 
 
 # Changes for version 0.2.7
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Fixed statement in README.rst describing bug #T4393.
 
 
 # Changes for version 0.2.6
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
 - Added a new POST request tutorial to the README.rst.
@@ -102,8 +92,6 @@
 
 
 # Changes for version 0.2.5
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
 - Tests updated and added to.
@@ -120,8 +108,6 @@
 
 
 # Changes for version 0.2.4
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Updated `setup.py` with more package information.
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
@@ -129,8 +115,6 @@
 
 
 # Changes for version 0.2.3
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Typos and naming inaccuracies fixed around the code and documentation.
 - Added package to [git repo](https://github.com/rmlibre/tiny_gnupg.git)
@@ -139,8 +123,6 @@
 
 
 # Changes for version 0.2.2
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - Typos and naming inaccuracies fixed around the code and documentation.
 - Switched the internal networking calls to use the higher level `network_get()` and `network_post()` methods.
@@ -149,8 +131,6 @@
 
 
 # Changes for version 0.2.1
-## Known Issues
-- Same as foreward release.
 ## Minor Changes
 - The names of some existing methods were changed. `parse_output()` is now `read_output()`. `gpg_directory()` is now `format_homedir()`. The names of some existing attributes were changed. `gpg_path` is now `executable`, with its parent folder uri now stored in `home`. `key_id` is now `fingerprint` to avoid similarities with the naming convention used for the methods which query the package environment keys for uid information, i.e. `key_fingerprint()` and `key_email()`.
 ## Major Changes
