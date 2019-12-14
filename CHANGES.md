@@ -4,7 +4,6 @@
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
-- The `delete()` method isn't completely automated. There are system dialogs that pop up asking for user confirmation of the delete process. This isn't ideal, but it's not clear at the moment how to automate those answers.
 ## Minor Changes
 - Added new tests.
 - Removed `base_command()` method because it was only a layer of indirection. It was merged into `command()`.
