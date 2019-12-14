@@ -21,6 +21,7 @@ from multiprocessing import Process
 PACKAGE_PATH = str(Path(__file__).parent.parent)
 sys.path.append(PACKAGE_PATH)
 run = asyncio.get_event_loop().run_until_complete
+new_task = asyncio.get_event_loop().create_task
 
 from tiny_gnupg import GnuPG
 
@@ -108,6 +109,14 @@ def test_cipher(gpg):
     assert gpg.decrypt(encrypted_message_1) == message + "\n"
     assert gpg.decrypt(encrypted_message_2) == message + "\n"
     assert gpg.decrypt(encrypted_message_3) == message + "\n"
+    signed_message_0 = gpg.sign(message)
+    signed_message_1 = gpg.sign(signed_message_0)
+    signed_message_2 = gpg.sign(signed_message_1)
+    signed_message_3 = gpg.sign(signed_message_2)
+    gpg.verify(signed_message_0)
+    gpg.verify(signed_message_1)
+    gpg.verify(signed_message_2)
+    gpg.verify(signed_message_3)
 
 
 def test_file_io(gpg):
@@ -172,6 +181,28 @@ def test_networking(gpg):
     # after we sent them a bug report. GnuPG currently has "newer" and
     # "older" style header formatting, which leads to inconsistent
     # results when handling newer ECC keys.
+
+
+def test_network_concurrency(gpg):
+    async def gather_looper(gpg, uid):
+        tasks = await looper(gpg, uid)
+        return await asyncio.gather(*tasks)
+
+    async def looper(gpg, uid):
+        tasks = []
+        for i in range(5):
+            tasks.append(new_task(gpg.search(uid)))
+        return tasks
+
+    uid = "support@keys.openpgp.org"
+    url = run(gpg.search(uid))
+    urls = run(gather_looper(gpg, uid))
+    assert url.strip()
+    for link in urls:
+        assert url == link
+    urls = run(gather_looper(gpg, uid))
+    for link in urls:
+        assert url == link
 
 
 def test_delete(gpg):

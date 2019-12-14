@@ -10,7 +10,6 @@
 
 __all__ = ["GnuPG"]
 
-import os
 import json
 import aiofiles
 from shlex import quote
@@ -115,31 +114,36 @@ class GnuPG:
         async with self.network_post(url, **kw) as response:
             return await response.text()
 
-    def base_command(self, with_passphrase=False):
+    def command(self, *options, with_passphrase=False):
         if with_passphrase:
             return [
                 self.executable,
+                "--yes",
+                "--batch",
+                "--quiet",
                 "--homedir",
                 self.home,
                 "--pinentry-mode",
                 "loopback",
                 "--passphrase-fd",
                 "0",
+                *options,
             ]
         else:
             return [
                 self.executable,
+                "--yes",
+                "--batch",
+                "--quiet",
                 "--homedir",
                 self.home,
+                *options,
             ]
-
-    def command(self, *options, with_passphrase=False):
-        return self.base_command(with_passphrase) + [*options]
 
     def encode_inputs(self, *inputs):
         return ("\n".join(inputs) + "\n").encode()
 
-    def read_output(self, command=None, inputs=b"", shell=False):
+    def read_output(self, command=(), inputs=b"", shell=False):
         return check_output(
             [quote(part) for part in command],
             input=inputs,
@@ -149,6 +153,8 @@ class GnuPG:
     def gen_key(self):
         command = [
             self.executable,
+            "--yes",
+            "--quiet",
             "--homedir",
             self.home,
             "--pinentry-mode",
@@ -211,12 +217,7 @@ class GnuPG:
         return self.read_output(command, inputs)
 
     def delete(self, uid=""):
-        """
-        This method is not fully automated, as gnupg2 will ask twice
-        to confirm secret key deletion using a strange pinentry-like
-        dialog box. It's not clear at the moment on how to send commands
-        directly to those dialog boxes.
-        """
+        uid = self.key_fingerprint(uid)
         try:
             command = self.command(
                 "--command-fd",
@@ -351,8 +352,6 @@ class GnuPG:
             raise FileNotFoundError("No key found on server.")
         print(f"key location: {key_url}")
         key = await self.get(key_url)
-        if not key:
-            raise IOError("Failure to download key from server.")
         print(f"downloaded:\n{key}")
         return self.text_import(key)
 
