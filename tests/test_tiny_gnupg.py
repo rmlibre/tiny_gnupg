@@ -35,7 +35,7 @@ def gpg():
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
     gpg.reset_daemon()
-    sleep(0.5)
+    sleep(0.2)
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -110,9 +110,13 @@ def test_cipher(gpg):
     assert gpg.decrypt(encrypted_message_3) == message + "\n"
 
 
-async def fetch(gpg, url):
-    async with gpg.network_get(url) as response:
-        return await response.text()
+def test_file_io(gpg):
+    path = gpg.home
+    file_path = f"{path}/{gpg.fingerprint}.asc"
+    key = gpg.text_export(gpg.fingerprint)
+    run(gpg.file_export(path, gpg.fingerprint))
+    run(gpg.file_import(file_path))
+    Path(file_path).unlink()
 
 
 def test_networking(gpg):
@@ -123,7 +127,7 @@ def test_networking(gpg):
     assert " " not in key_url
     assert "<" not in key_url
     assert ">" not in key_url
-    key = run(fetch(gpg, key_url))
+    key = run(gpg.get(key_url))
     gpg.text_import(key)
     assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
@@ -146,7 +150,7 @@ def test_networking(gpg):
     run(gpg.network_export(gpg.fingerprint))
     test_key_url = run(gpg.search(gpg.fingerprint))
     local_key = gpg.text_export(gpg.fingerprint)
-    network_key = run(fetch(gpg, test_key_url))
+    network_key = run(gpg.get(test_key_url))
     assert local_key != network_key  # removed and/or reencoded uids
     try:
         gpg.text_import(network_key)
@@ -157,7 +161,7 @@ def test_networking(gpg):
         assert failed
     try:
         run(gpg.network_import(gpg.fingerprint))
-        failed = False  
+        failed = False
     except:
         failed = True  # GnuPG bug #T4393
     finally:

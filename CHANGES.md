@@ -1,4 +1,4 @@
-# Changes for version 0.3.6
+# Changes for version 0.3.7
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
@@ -6,10 +6,19 @@
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 - The `delete()` method isn't completely automated. There are system dialogs that pop up asking for user confirmation of the delete process. This isn't ideal, but it's not clear at the moment how to automate those answers.
 ## Minor Changes
+- Added new tests.
+- Typos and inaccuracies fixed around the code and documentation.
+## Major Changes
+- Added new `secret` kwargs to `text_export(uid, secret=bool)` and `file_export(path, uid, secret=bool)` to allow secret keys to be exported from the package's environment.
+- Added new `post(url, **kw)` and `get(url, **kw)` methods to allow access to the networking tools without having to manually construct the `network_post()` and `network_get()` context managers. This turns network calls into one liners that can be wrapped more easily wrapped with an asyncio `run` function.
+
+
+# Changes for version 0.3.6
+## Minor Changes
 - Added new tests for networking methods.
 - Documentation updates and accuracy fixes.
 ## Major Changes
-- Removed a check in `network_import()` which wasn't useful and was should've been causing problems with imports, even though the tests didn't seem to notice.
+- Removed a check in `network_import()` which wasn't useful and should've been causing problems with imports, even though the tests didn't seem to notice.
 
 
 # Changes for version 0.3.5

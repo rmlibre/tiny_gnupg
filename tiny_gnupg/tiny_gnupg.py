@@ -107,6 +107,14 @@ class GnuPG:
         finally:
             await session.close()
 
+    async def get(self, url="", **kw):
+        async with self.network_get(url, **kw) as response:
+            return await response.text()
+
+    async def post(self, url="", **kw):
+        async with self.network_post(url, **kw) as response:
+            return await response.text()
+
     def base_command(self, with_passphrase=False):
         if with_passphrase:
             return [
@@ -270,9 +278,9 @@ class GnuPG:
 
     def raw_list_keys(self, uid=""):
         if uid:
-            command = self.command("--list-keys", uid)
+            command = self.command(f"--list-keys", uid)
         else:
-            command = self.command("--list-keys")
+            command = self.command(f"--list-keys")
         return self.read_output(command)
 
     def format_list_keys(self, raw_list_keys_terminal_output):
@@ -309,7 +317,7 @@ class GnuPG:
     def key_trust(self, uid=""):
         key = self.raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
-        return trust[: trust.find("]")]
+        return trust[: trust.find("]")].strip()
 
     def reset_daemon(self):
         command = [
@@ -327,8 +335,7 @@ class GnuPG:
     async def raw_search(self, query=""):
         url = f"{self.searchserver}{query}"
         print(f"querying: {url}")
-        async with self.network_get(url) as response:
-            return await response.text()
+        return await self.get(url)
 
     async def search(self, query=""):
         query = query.replace("@", "%40")
@@ -343,8 +350,7 @@ class GnuPG:
         if not key_url:
             raise FileNotFoundError("No key found on server.")
         print(f"key location: {key_url}")
-        async with self.network_get(key_url) as response:
-            key = await response.text()
+        key = await self.get(key_url)
         if not key:
             raise IOError("Failure to download key from server.")
         print(f"downloaded:\n{key}")
@@ -374,14 +380,12 @@ class GnuPG:
         print(f"contacting: {url}")
         print(f"exporting:\n{key}")
         payload = {"keytext": key}
-        async with self.network_post(url, json=payload) as response:
-            return await response.text()
+        return await self.post(url, json=payload)
 
     async def raw_api_verify(self, payload=""):
         url = self.keyserver_verify_api
         print(f"sending verification to: {url}")
-        async with self.network_post(url, json=payload) as response:
-            return await response.text()
+        return await self.post(url, json=payload)
 
     async def network_export(self, uid=""):
         response = json.loads(await self.raw_api_export(uid))
@@ -393,13 +397,22 @@ class GnuPG:
         print(f"check {payload['addresses'][0]} for confirmation.")
         return response
 
-    async def file_export(self, path="", uid="", mode="w+"):
-        key = self.text_export(uid)
+    async def file_export(
+        self, path="", uid="", mode="w+", *, secret=False
+    ):
+        key = self.text_export(uid, secret=secret)
         fingerprint = self.key_fingerprint(uid)
         filename = Path(path) / (fingerprint + ".asc")
         async with aiofiles.open(filename, mode) as keyfile:
             return await keyfile.write(key)
 
-    def text_export(self, uid=""):
-        command = self.command("-a", "--export", uid)
-        return self.read_output(command)
+    def text_export(self, uid="", *, secret=False):
+        if secret == True:  # make strictly True, not just truthy
+            command = self.command(
+                "-a", "--export-secret-keys", uid, with_passphrase=True
+            )
+            inputs = self.encode_inputs(self.passphrase)
+            return self.read_output(command, inputs)
+        else:
+            command = self.command("-a", f"--export", uid)
+            return self.read_output(command)
