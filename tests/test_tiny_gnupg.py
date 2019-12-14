@@ -8,7 +8,6 @@
 # All rights reserved.
 #
 
-import os
 import sys
 import pytest
 import asyncio
@@ -85,38 +84,42 @@ def test_command(gpg):
 
 def test_cipher(gpg):
     message = "\n  twenty\ntwo\narmed\ndogs\nrush\nthe\nkibble  \n\n"
-    encrypted_message_0 = gpg.encrypt(
-        message=message,
-        uid=gpg.fingerprint,
-        local_user=gpg.fingerprint,
-    )
-    encrypted_message_1 = gpg.encrypt(
-        message=message,
-        uid=gpg.fingerprint,
-    )
-    encrypted_message_2 = gpg.encrypt(
-        message=message,
-        uid=gpg.fingerprint,
-        local_user=gpg.fingerprint,
-        sign=False,
-    )
-    encrypted_message_3 = gpg.encrypt(
-        message=message,
-        uid=gpg.fingerprint,
-        sign=False,
-    )
-    assert gpg.decrypt(encrypted_message_0) == message + "\n"
-    assert gpg.decrypt(encrypted_message_1) == message + "\n"
-    assert gpg.decrypt(encrypted_message_2) == message + "\n"
-    assert gpg.decrypt(encrypted_message_3) == message + "\n"
-    signed_message_0 = gpg.sign(message)
-    signed_message_1 = gpg.sign(signed_message_0)
-    signed_message_2 = gpg.sign(signed_message_1)
-    signed_message_3 = gpg.sign(signed_message_2)
-    gpg.verify(signed_message_0)
-    gpg.verify(signed_message_1)
-    gpg.verify(signed_message_2)
-    gpg.verify(signed_message_3)
+    for trust_level in range(1, 6):
+        for fingerprint in gpg.list_keys():
+            gpg.trust(fingerprint, trust_level)
+        encrypted_message_0 = gpg.encrypt(
+            message=message,
+            uid=gpg.fingerprint,
+            local_user=gpg.fingerprint,
+        )
+        encrypted_message_1 = gpg.encrypt(
+            message=message,
+            uid=gpg.fingerprint,
+        )
+        encrypted_message_2 = gpg.encrypt(
+            message=message,
+            uid=gpg.fingerprint,
+            local_user=gpg.fingerprint,
+            sign=False,
+        )
+        encrypted_message_3 = gpg.encrypt(
+            message=message,
+            uid=gpg.fingerprint,
+            sign=False,
+        )
+        assert gpg.decrypt(encrypted_message_0) == message + "\n"
+        assert gpg.decrypt(encrypted_message_1) == message + "\n"
+        assert gpg.decrypt(encrypted_message_2) == message + "\n"
+        assert gpg.decrypt(encrypted_message_3) == message + "\n"
+        signed_message_0 = gpg.sign(message)
+        signed_message_1 = gpg.sign(signed_message_0)
+        signed_message_2 = gpg.sign(signed_message_1)
+        signed_message_3 = gpg.sign(signed_message_2)
+        signed_message_3 = gpg.sign(signed_message_3)
+        gpg.verify(signed_message_0)
+        gpg.verify(signed_message_1)
+        gpg.verify(signed_message_2)
+        gpg.verify(signed_message_3)
 
 
 def test_file_io(gpg):

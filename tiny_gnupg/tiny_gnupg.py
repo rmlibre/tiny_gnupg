@@ -251,6 +251,7 @@ class GnuPG:
             uid,
             with_passphrase=True,
         )
+        command.remove("--batch")  # avoid crash with untrusted keys
         if self.key_trust(uid) != "ultimate":
             inputs = self.encode_inputs(self.passphrase, "y", message)
         else:
@@ -305,9 +306,7 @@ class GnuPG:
         for part in parts.split("\nuid"):
             if "@" in part and "]" in part:
                 part = part[part.find("]") + 1 :]
-                if part.startswith("<"):
-                    part = part[1:-1]
-                elif "<" in part:
+                if "<" in part and ">" in part:
                     part = part[part.find("<") + 1 : part.find(">")]
                 return part
 
