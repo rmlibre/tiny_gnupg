@@ -24,13 +24,16 @@ HOME_PATH = Path(__file__).absolute().parent / "gpghome"
 
 
 class GnuPG:
-    def __init__(self, username="", email="", passphrase=""):
+    def __init__(
+        self, username="", email="", passphrase="", torify=False
+    ):
         self.set_homedir()
         self.email = email
         self.username = username
         self.passphrase = passphrase
         self.set_fingerprint(email)
         self.set_network_variables()
+        self.set_base_command(torify)
 
     def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
@@ -121,31 +124,34 @@ class GnuPG:
         async with self.network_post(url, **kw) as response:
             return await response.text()
 
+    def set_base_command(self, torify=False):
+        torify = ["torify"] if torify else []
+        self.base_passphrase_command = torify + [
+            self.executable,
+            "--yes",
+            "--batch",
+            "--quiet",
+            "--homedir",
+            self.home,
+            "--pinentry-mode",
+            "loopback",
+            "--passphrase-fd",
+            "0",
+        ]
+        self.base_command = torify + [
+            self.executable,
+            "--yes",
+            "--batch",
+            "--quiet",
+            "--homedir",
+            self.home,
+        ]
+
     def command(self, *options, with_passphrase=False):
         if with_passphrase:
-            return [
-                self.executable,
-                "--yes",
-                "--batch",
-                "--quiet",
-                "--homedir",
-                self.home,
-                "--pinentry-mode",
-                "loopback",
-                "--passphrase-fd",
-                "0",
-                *options,
-            ]
+            return self.base_passphrase_command + [*options]
         else:
-            return [
-                self.executable,
-                "--yes",
-                "--batch",
-                "--quiet",
-                "--homedir",
-                self.home,
-                *options,
-            ]
+            return self.base_command + [*options]
 
     def encode_inputs(self, *inputs):
         return ("\n".join(inputs) + "\n").encode()
@@ -233,9 +239,9 @@ class GnuPG:
                 uid,
             )
             inputs = self.encode_inputs("y", "y")
-            print(self.read_output(command, inputs))
-        except Exception as e:
-            print(e)
+            self.read_output(command, inputs)
+        except:
+            pass
         command = self.command("--command-fd", "0", "--delete-key", uid)
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
@@ -249,6 +255,7 @@ class GnuPG:
         return self.read_output(command, inputs)
 
     def encrypt(self, message="", uid="", sign=True, local_user=""):
+        uid = self.key_fingerprint(uid)  # avoid wkd lookups
         command = self.command(
             "--command-fd",
             "0",

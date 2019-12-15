@@ -52,9 +52,16 @@ Usage Example
     # Or retrieve a specific key where a searchable portion of its uid
     # information is known, like an email address or fingerprint ->
     gpg.list_keys("username@user.net")
+    # >>> {"EE36F0584971280730D76CEC94A470B77ABA6E81": "username@user.net"}
 
-    # Let's encrypt a message to Alice, whose public key is stored
-    # on keys.openpgp.org/.
+    # The raw output from the --list-keys gpg option can also be
+    # accessed ->
+    output = gpg.raw_list_keys()
+
+
+    # Let's try encrypting a message to Alice, whose public key is
+    # stored on keys.openpgp.org/.
+
     # First, we'll import Alice's key from the keyserver (This requires
     # a tor system installation. Or an open tor browser, and the tor_port
     # attribute set to 9150) ->
@@ -62,16 +69,16 @@ Usage Example
 
     run = asyncio.get_event_loop().run_until_complete
 
-    run(gpg.network_import("alice@email.domain"))
+    run(gpg.network_import(uid="alice@email.domain"))
 
     # Then encrypt a message with Alice's key and sign it ->
     msg = "So, what's the plan this Sunday, Alice?"
-    encrypted_message = gpg.encrypt(msg, "alice@email.domain", sign=True)
+    encrypted_message = gpg.encrypt(message=msg, uid="alice@email.domain", sign=True)
 
     # We could directly send a copy of our key to Alice, or upload it to
     # the keyserver. Alice will need a copy so the signature on the
     # message can be verified ->
-    run(gpg.network_export(gpg.fingerprint))
+    run(gpg.network_export(uid=gpg.fingerprint))
 
     # Alice could now import our key (after we do an email verification
     # with the keyserver) ->
@@ -123,25 +130,30 @@ Networking Example
 
     # There's a convenience function built into the class that
     # basically mimics read_url() ->
-    ip_addr = run(gpg.get("https://icanhazip.com/"))
+    ip_addr = run(GnuPG().get("https://icanhazip.com/"))
 
 
     # POST requests can also be sent with the network_post() method.
     # Let's use a POST request to send the keyserver a new key we
     # create ->
-    async def post(gpg, url, payload=""):
+    async def post_data(gpg, url, payload=""):
         async with gpg.network_post(url, json=payload) as response:
             return await response.text()
 
 
-    gpg = GnuPG("username", "username@user.net", "test_user_passphrase")
+    gpg = GnuPG(
+        username="username",
+        email="username@user.net",
+        passphrase="test_user_passphrase",
+    )
     gpg.gen_key()
     url = gpg.keyserver_export_api
-    payload = {"keytext": gpg.text_export(gpg.fingerprint)}
-    api_token_json = run(post(gpg, url, payload))
+    payload = {"keytext": gpg.text_export(uid=gpg.fingerprint)}
+
+    api_token_json = run(post_data(gpg, url, payload))
 
     # There's also a convenience function built into the class that
-    # mimics post() ->
+    # mimics post_data() ->
     api_token_json = run(gpg.post(url, json=payload))
 
     # And there we have it, it's super simple. And these requests have
@@ -155,6 +167,33 @@ Networking Example
     # To learn more about how to use their POST and GET requests, you
     # can read the docs here:
     # https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+
+
+About Torification
+------------------
+
+.. code:: python
+
+    # A user can make sure that any connections gnupg makes with the
+    # network are always run through tor by setting torify=True ->
+    username = "username"
+    email = "username@user.net"
+    passphrase = "test_user_passphrase"
+    gpg = GnuPG(username, email, passphrase, torify=True)
+
+    # This is helpful because there are gnupg settings which cause
+    # certain commands to do automatic connections to the web. For
+    # instance, when encrypting, gnupg may be set to automatically
+    # search for the recipient's key on a keyserver if it's not in the
+    # local keyring. tiny_gnupg doesn't use gnupg's networking
+    # interface, and ensures tor connections through the aiohttp_socks
+    # library. So, if gnupg makes these kinds of silent connections,
+    # it can inadvertently reveal a users ip.
+
+Using torify requires a tor installation on the user system. If it's
+running Debian/Ubuntu then this guide_ could be helpful.
+
+.. _guide: https://2019.www.torproject.org/docs/debian.html.en
 
 
 Extras
@@ -173,13 +212,13 @@ Extras
 
     # It also turns out, a user can sign things independently from
     # encrypting ->
-    signed_data = gpg.sign("maybe a hash of a file?")
+    signed_data = gpg.sign(target="maybe a hash of a file?")
 
     # Or sign a key in the package's keyring ->
     gpg.sign("alice@email.domain", key=True)
 
     # And verify data as well ->
-    gpg.verify(signed_data)  # throws if invalid
+    gpg.verify(message=signed_data)  # throws if invalid
 
     # Importing key files is also a thing ->
     import asyncio
@@ -198,5 +237,5 @@ Extras
 
     # When a user is done with a key, it can be deleted from the package
     # keyring like this ->
-    gpg.delete("username@user.net")
+    gpg.delete(uid="username@user.net")
 
