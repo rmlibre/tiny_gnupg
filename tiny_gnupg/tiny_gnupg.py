@@ -43,7 +43,7 @@ class GnuPG:
     def set_home_permissions(self, home):
         try:
             home = str(Path(home).absolute())
-            command = ["chmod", "-R", "700", self.home]
+            command = ["chmod", "-R", "700", home]
             return self.read_output(command)
         except:
             print(f"Invalid permission to modify home folder: {home}")
@@ -299,9 +299,9 @@ class GnuPG:
 
     def raw_list_keys(self, uid=""):
         if uid:
-            command = self.command(f"--list-keys", uid)
+            command = self.command("--list-keys", uid)
         else:
-            command = self.command(f"--list-keys")
+            command = self.command("--list-keys")
         return self.read_output(command)
 
     def format_list_keys(self, raw_list_keys_terminal_output):
@@ -431,7 +431,7 @@ class GnuPG:
             inputs = self.encode_inputs(self.passphrase)
             return self.read_output(command, inputs)
         elif secret == False:
-            command = self.command("-a", f"--export", uid)
+            command = self.command("-a", "--export", uid)
             return self.read_output(command)
         else:
             raise ValueError(f"secret != boolean, {type(secret)} given")
