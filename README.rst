@@ -121,6 +121,10 @@ Networking Example
     # Check your ip address for fun ->
     ip_addr = run(read_url("https://icanhazip.com/"))
 
+    # There's a convenience function built into the class that
+    # basically mimics read_url() ->
+    ip_addr = run(gpg.get("https://icanhazip.com/"))
+
 
     # POST requests can also be sent with the network_post() method.
     # Let's use a POST request to send the keyserver a new key we
@@ -135,6 +139,11 @@ Networking Example
     url = gpg.keyserver_export_api
     payload = {"keytext": gpg.text_export(gpg.fingerprint)}
     api_token_json = run(post(gpg, url, payload))
+
+    # There's also a convenience function built into the class that
+    # mimics post() ->
+    api_token_json = run(gpg.post(url, json=payload))
+
     # And there we have it, it's super simple. And these requests have
     # the added benefit of being completely routed through tor. The
     # keyserver here also has a v3 onion address which we use to query,
@@ -166,6 +175,9 @@ Extras
     # encrypting ->
     signed_data = gpg.sign("maybe a hash of a file?")
 
+    # Or sign a key in the package's keyring ->
+    gpg.sign("alice@email.domain", key=True)
+
     # And verify data as well ->
     gpg.verify(signed_data)  # throws if invalid
 
@@ -177,14 +189,14 @@ Extras
     path_to_file = "/home/user/keyfiles/"
     run(gpg.file_import(path=path_to_file + "alices_key.asc"))
 
-    # And exporting ->
+    # As well as exporting public keys ->
     run(gpg.file_export(path=path_to_file, uid=gpg.email))
+
+    # And secret keys, but really, keep those safe! ->
+    run(gpg.file_export(path=path_to_file, uid=gpg.email, secret=True))
 
 
     # When a user is done with a key, it can be deleted from the package
     # keyring like this ->
-    gpg.delete("username@user.net")  # You'll have to manually click
-                                     # the confirm button, though.
-
-
+    gpg.delete("username@user.net")
 

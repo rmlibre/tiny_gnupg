@@ -15,9 +15,8 @@ from time import sleep
 from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import SocksConnector
-from multiprocessing import Process
 
-PACKAGE_PATH = str(Path(__file__).parent.parent)
+PACKAGE_PATH = str(Path(__file__).absolute().parent.parent)
 sys.path.append(PACKAGE_PATH)
 run = asyncio.get_event_loop().run_until_complete
 new_task = asyncio.get_event_loop().create_task
@@ -31,7 +30,7 @@ def gpg():
     username = "testing_user"
     email = "testing_user@testing.testing"
     passphrase = "test_passphrase"
-    relative_gpg_path = PACKAGE_PATH + "/tiny_gnupg/gpghome"
+    relative_gpg_path = str(Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome")
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
     gpg.reset_daemon()
@@ -123,8 +122,8 @@ def test_cipher(gpg):
 
 
 def test_file_io(gpg):
-    path = gpg.home
-    file_path = f"{path}/{gpg.fingerprint}.asc"
+    path = Path(gpg.home).absolute()
+    file_path = str(path / f"{gpg.fingerprint}.asc")
     key = gpg.text_export(gpg.fingerprint)
     run(gpg.file_export(path, gpg.fingerprint))
     run(gpg.file_import(file_path))
@@ -208,7 +207,21 @@ def test_network_concurrency(gpg):
         assert url == link
 
 
+def test_key_signing(gpg):
+    dev_email = "gonzo.development@protonmail.ch"
+    dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
+    command = gpg.command("--check-sigs")
+    keyring = gpg.read_output(command)
+    gpg.sign(dev_fingerprint, key=True)
+    signed_keying = gpg.read_output(command)
+    assert keyring != signed_keying
+    condensed_keyring = signed_keying.replace(" ", "")
+    fingerprint = gpg.fingerprint[-16:]
+    assert f"<{dev_email}>\nsig!{fingerprint}" in condensed_keyring
+
+
 def test_delete(gpg):
+    dev_email = "gonzo.development@protonmail.ch"
     email = "testing_user@testing.testing"
     amount_of_test_keys = 0
     for key_email in gpg.list_keys().values():
@@ -220,3 +233,4 @@ def test_delete(gpg):
         if key_email == email:
             amount_of_test_keys_after_delete += 1
     assert amount_of_test_keys - 1 == amount_of_test_keys_after_delete
+    gpg.delete(dev_email)

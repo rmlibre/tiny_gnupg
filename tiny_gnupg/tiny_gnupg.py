@@ -20,7 +20,7 @@ from aiocontext import async_contextmanager
 from aiohttp_socks import SocksConnector, SocksVer
 
 
-HOME_PATH = Path(__file__).parent / "gpghome"
+HOME_PATH = Path(__file__).absolute().parent / "gpghome"
 
 
 class GnuPG:
@@ -34,12 +34,19 @@ class GnuPG:
 
     def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
-        self.executable = self.home + "/gpg2"
-        command = ["chmod", "-R", "700", self.home]
-        return self.read_output(command)
+        self.executable = str(Path(self.home).absolute() / "gpg2")
+        self.set_home_permissions(self.home)
 
     def format_homedir(self, path=HOME_PATH):
         return str(Path(path).absolute())
+
+    def set_home_permissions(self, home):
+        try:
+            home = str(Path(home).absolute())
+            command = ["chmod", "-R", "700", self.home]
+            return self.read_output(command)
+        except:
+            print(f"Invalid permission to modify home folder: {home}")
 
     def set_fingerprint(self, uid=""):
         try:
@@ -251,8 +258,8 @@ class GnuPG:
             uid,
             with_passphrase=True,
         )
-        command.remove("--batch")  # avoid crash with untrusted keys
         if self.key_trust(uid) != "ultimate":
+            command.remove("--batch")  # avoid crash with untrusted keys
             inputs = self.encode_inputs(self.passphrase, "y", message)
         else:
             inputs = self.encode_inputs(self.passphrase, message)
@@ -263,14 +270,26 @@ class GnuPG:
         inputs = self.encode_inputs(self.passphrase, message)
         return self.read_output(command, inputs)
 
-    def sign(self, message="", local_user=""):
-        command = self.command(
-            "--local-user",
-            local_user if local_user else self.fingerprint,
-            "-as",
-            with_passphrase=True,
-        )
-        inputs = self.encode_inputs(self.passphrase, message)
+    def sign(self, target="", local_user="", *, key=False):
+        if key == True:  # avoid truthiness
+            command = self.command(
+                "--local-user",
+                local_user if local_user else self.fingerprint,
+                "--sign-key",
+                target,
+                with_passphrase=True,
+            )
+            inputs = self.encode_inputs(self.passphrase)
+        elif key == False:
+            command = self.command(
+                "--local-user",
+                local_user if local_user else self.fingerprint,
+                "-as",
+                with_passphrase=True,
+            )
+            inputs = self.encode_inputs(self.passphrase, target)
+        else:
+            raise ValueError(f"key != boolean, {type(key)} given.")
         return self.read_output(command, inputs)
 
     def verify(self, message=""):
@@ -317,7 +336,7 @@ class GnuPG:
     def key_trust(self, uid=""):
         key = self.raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
-        return trust[: trust.find("]")].strip()
+        return trust[: trust.find("]")]
 
     def reset_daemon(self):
         command = [
@@ -400,17 +419,19 @@ class GnuPG:
     ):
         key = self.text_export(uid, secret=secret)
         fingerprint = self.key_fingerprint(uid)
-        filename = Path(path) / (fingerprint + ".asc")
+        filename = Path(path).absolute() / (fingerprint + ".asc")
         async with aiofiles.open(filename, mode) as keyfile:
             return await keyfile.write(key)
 
     def text_export(self, uid="", *, secret=False):
-        if secret == True:  # make strictly True, not just truthy
+        if secret == True:  # avoid truthiness
             command = self.command(
                 "-a", "--export-secret-keys", uid, with_passphrase=True
             )
             inputs = self.encode_inputs(self.passphrase)
             return self.read_output(command, inputs)
-        else:
+        elif secret == False:
             command = self.command("-a", f"--export", uid)
             return self.read_output(command)
+        else:
+            raise ValueError(f"secret != boolean, {type(secret)} given")

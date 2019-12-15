@@ -2,6 +2,7 @@ recursive-include licenses *
 include LICENSE
 include CHANGES.md
 include README.rst
+include .gitignore
 include tests/test_tiny_gnupg.py
 include tiny_gnupg/__init__.py
 include tiny_gnupg/tiny_gnupg.py
