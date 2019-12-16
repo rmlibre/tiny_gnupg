@@ -230,7 +230,7 @@ class GnuPG:
         return self.read_output(command, inputs)
 
     def delete(self, uid=""):
-        uid = self.key_fingerprint(uid)
+        uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
         try:
             command = self.command(
                 "--command-fd",
