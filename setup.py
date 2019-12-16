@@ -20,7 +20,7 @@ with open("README.rst", "r") as readme:
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.4.3",
+    version="0.4.4",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
@@ -56,8 +56,7 @@ setup(
             "async",
             "asyncio",
             "clean",
-            "simple",
-            "code",
+            "simple code",
             "tor",
             "elliptic",
             "curve",
@@ -68,6 +67,13 @@ setup(
             "anonymity",
             "security",
             "beta testing",
+            "automation",
+            "adapter-pattern",
+            "communications",
+            "SOCKSv5",
+            "socks5",
+            "web",
+
         ]
     ),
     include_package_data=True,
