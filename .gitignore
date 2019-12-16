@@ -9,6 +9,7 @@ random_seed
 trustdb.gpg
 sshcontrol
 tofu.db
+.coverage
 build
 dist
 venv
