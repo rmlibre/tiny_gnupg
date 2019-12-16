@@ -1,5 +1,5 @@
 # This file is part of tiny_gnupg, a small-as-possible solution for
-# handling GnuPG ECC keys.
+# handling GnuPG ed-25519 ECC keys.
 #
 # Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
 # Copyright © 2019-2020 Gonzo Investigatory Journalism Agency, LLC
