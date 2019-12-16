@@ -5,9 +5,9 @@
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 ## Minor Changes
-
+- Updated package metadata files to be gpg2.conf aware.
 ## Major Changes
-
+- Added support for a default package-wide gpg2.conf file.
 
 
 # Changes for version 0.4.4
