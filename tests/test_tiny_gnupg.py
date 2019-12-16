@@ -1,5 +1,5 @@
 # This file is part of tiny_gnupg, a small-as-possible solution for
-# handling GnuPG ed-25519 ECC keys.
+# handling GnuPG ed25519 ECC keys.
 #
 # Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
 # Copyright © 2019-2020 Gonzo Investigatory Journalism Agency, LLC
@@ -41,9 +41,29 @@ def gpg():
 
 def test_instance(gpg):
     gpg.gen_key()
+    test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
+    assert gpg.username == test_gpg.username
+    assert gpg.email == test_gpg.email
+    assert gpg.passphrase == test_gpg.passphrase
+    assert gpg.port == test_gpg.port
+    assert gpg.tor_port == test_gpg.tor_port
+    assert gpg.home == test_gpg.home
+    assert gpg.executable == test_gpg.executable
+    assert gpg._connector == test_gpg._connector
+    assert gpg._session == test_gpg._session
+    assert gpg._search_string == test_gpg._search_string
+    assert gpg.keyserver == test_gpg.keyserver
+    assert str(gpg.port) in gpg.keyserver
+    assert gpg.keyserver_export_api == test_gpg.keyserver_export_api
+    assert gpg.keyserver_verify_api == test_gpg.keyserver_verify_api
+    assert gpg.searchserver == test_gpg.searchserver
+    assert gpg.base_command == test_gpg.base_command
+    assert gpg.base_passphrase_command == test_gpg.base_passphrase_command
+    #
     assert gpg.username == "testing_user"
     assert gpg.email == "testing_user@testing.testing"
-    assert gpg.fingerprint == "" or type(gpg.fingerprint) == str
+    assert len(gpg.fingerprint) == 40
+    assert type(gpg.fingerprint) == str
     assert gpg.passphrase == "test_passphrase"
     assert gpg.home.endswith("gpghome")
     assert gpg.executable.endswith("gpg2")
@@ -106,10 +126,10 @@ def test_cipher(gpg):
             uid=gpg.fingerprint,
             sign=False,
         )
-        assert gpg.decrypt(encrypted_message_0) == message + "\n"
-        assert gpg.decrypt(encrypted_message_1) == message + "\n"
-        assert gpg.decrypt(encrypted_message_2) == message + "\n"
-        assert gpg.decrypt(encrypted_message_3) == message + "\n"
+        assert gpg.decrypt(encrypted_message_0) == message
+        assert gpg.decrypt(encrypted_message_1) == message
+        assert gpg.decrypt(encrypted_message_2) == message
+        assert gpg.decrypt(encrypted_message_3) == message
         signed_message_0 = gpg.sign(message)
         signed_message_1 = gpg.sign(signed_message_0)
         signed_message_2 = gpg.sign(signed_message_1)
@@ -192,7 +212,7 @@ def test_network_concurrency(gpg):
 
     async def looper(gpg, uid):
         tasks = []
-        for i in range(5):
+        for i in range(4):
             tasks.append(new_task(gpg.search(uid)))
         return tasks
 

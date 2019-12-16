@@ -1,5 +1,5 @@
 # This file is part of tiny_gnupg, a small-as-possible solution for
-# handling GnuPG ECC keys.
+# handling GnuPG ed25519 ECC keys.
 #
 # Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
 # Copyright © 2019-2020 Gonzo Investigatory Journalism Agency, LLC
@@ -31,9 +31,9 @@ class GnuPG:
         self.email = email
         self.username = username
         self.passphrase = passphrase
+        self.set_base_command(torify)  # set before calling command()
         self.set_fingerprint(email)
         self.set_network_variables()
-        self.set_base_command(torify)
 
     def set_homedir(self, path=HOME_PATH):
         self.home = self.format_homedir(path)
@@ -50,6 +50,29 @@ class GnuPG:
             return self.read_output(command)
         except:
             print(f"Invalid permission to modify home folder: {home}")
+
+    def set_base_command(self, torify=False):
+        torify = ["torify"] if torify else []
+        self.base_passphrase_command = torify + [
+            self.executable,
+            "--yes",
+            "--batch",
+            "--quiet",
+            "--homedir",
+            self.home,
+            "--pinentry-mode",
+            "loopback",
+            "--passphrase-fd",
+            "0",
+        ]
+        self.base_command = torify + [
+            self.executable,
+            "--yes",
+            "--batch",
+            "--quiet",
+            "--homedir",
+            self.home,
+        ]
 
     def set_fingerprint(self, uid=""):
         try:
@@ -123,29 +146,6 @@ class GnuPG:
     async def post(self, url="", **kw):
         async with self.network_post(url, **kw) as response:
             return await response.text()
-
-    def set_base_command(self, torify=False):
-        torify = ["torify"] if torify else []
-        self.base_passphrase_command = torify + [
-            self.executable,
-            "--yes",
-            "--batch",
-            "--quiet",
-            "--homedir",
-            self.home,
-            "--pinentry-mode",
-            "loopback",
-            "--passphrase-fd",
-            "0",
-        ]
-        self.base_command = torify + [
-            self.executable,
-            "--yes",
-            "--batch",
-            "--quiet",
-            "--homedir",
-            self.home,
-        ]
 
     def command(self, *options, with_passphrase=False):
         if with_passphrase:
@@ -270,7 +270,7 @@ class GnuPG:
             inputs = self.encode_inputs(self.passphrase, "y", message)
         else:
             inputs = self.encode_inputs(self.passphrase, message)
-        return self.read_output(command, inputs)
+        return self.read_output(command, inputs[:-1])
 
     def decrypt(self, message=""):
         command = self.command("-d", with_passphrase=True)
@@ -294,7 +294,7 @@ class GnuPG:
                 "-as",
                 with_passphrase=True,
             )
-            inputs = self.encode_inputs(self.passphrase, target)
+            inputs = self.encode_inputs(self.passphrase, target)[:-1]
         else:
             raise ValueError(f"key != boolean, {type(key)} given.")
         return self.read_output(command, inputs)

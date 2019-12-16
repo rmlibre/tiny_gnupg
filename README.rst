@@ -1,5 +1,5 @@
-tiny_gnupg - A small-as-possible solution for handling GnuPG ECC keys.
-======================================================================
+tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
+===============================================================================
 A small, simple & intuitive wrapper for creating, using and managing
 GnuPG's Ed-25519 curve keys. We are in favor of reducing code size and
 complexity with strong and bias defaults over flexibility in the api.
@@ -162,11 +162,9 @@ Networking Example
     # upload, and import keys. This provides a nice, default layer of
     # privacy to our communication needs. Have fun little niblets!
 
+These networking tools work off instances of aiohttp.ClientSession. To learn more about how to use their POST and GET requests, you can read the docs here_.
 
-    # These networking tools work off instances of aiohttp.ClientSession.
-    # To learn more about how to use their POST and GET requests, you
-    # can read the docs here:
-    # https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+.. _here: https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
 
 
 About Torification
@@ -233,6 +231,16 @@ Extras
 
     # And secret keys, but really, keep those safe! ->
     run(gpg.file_export(path=path_to_file, uid=gpg.email, secret=True))
+
+    # The keys don't have to be exported to a file. Instead they can
+    # be exported as strings ->
+    my_key = gpg.text_export(uid=gpg.fingerprint)
+
+    # So can secret keys (Be careful!) ->
+    my_secret_key = gpg.text_export(gpg.fingerprint, secret=True)
+
+    # And they can just as easily be imported from strings ->
+    gpg.text_import(key=my_key)
 
 
     # When a user is done with a key, it can be deleted from the package

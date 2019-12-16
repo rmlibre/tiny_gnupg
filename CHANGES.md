@@ -1,13 +1,20 @@
-# Changes for version 0.4.2
+# Changes for version 0.4.3
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 ## Minor Changes
+- Changed package description to name more specifically the kind of ECC keys this package handles.
+## Major Changes
+- Fixed bug in `__init__()` caused by the set_base_command() not being called before the base commands are used. This leading to the fingerprint for a persistent user not being set automatically.
+
+
+# Changes for version 0.4.2
+## Minor Changes
 - Added some keyword argument names to README.rst tutorials.
 - Added section in README.rst about torification.
-# Major Changes
+## Major Changes
 - Added a check in `encrypt()` for the recipient key in the local keyring which throws if it doesn't exist. This is to prevent gnupg from using wkd to contact the network to find the key on a keyserver.
 - Added a new `torify=False` kwarg to `__init__()` which prepends `"torify"` to each gpg2 command if set to `True`. This will make sure that if gnupg makes any silent connections to keyservers or the web, that they are run through tor and don't expose a users ip address inadvertently.
 
