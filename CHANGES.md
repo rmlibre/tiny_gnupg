@@ -6,6 +6,8 @@
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 ## Minor Changes
 - Changed package description to name more specifically the kind of ECC keys this package handles.
+- Removed the trailing newline character that was inserted into the end of every `encrypt()` and `sign()` message.
+- Added new tests.
 ## Major Changes
 - Fixed bug in `__init__()` caused by the set_base_command() not being called before the base commands are used. This leading to the fingerprint for a persistent user not being set automatically.
 
