@@ -240,6 +240,29 @@ def test_key_signing(gpg):
     assert f"<{dev_email}>\nsig!{fingerprint}" in condensed_keyring
 
 
+def test_revoke(gpg):
+    raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
+    assert "[revoked]" not in raw_list_keys
+    try:
+        run(gpg.network_import(gpg.fingerprint))
+        failed = False
+    except:
+        failed = True
+    finally:
+        assert failed  # GnuPG bug #T4393
+    gpg.revoke(gpg.fingerprint)
+    raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
+    assert "[revoked]" in raw_list_keys
+    run(gpg.network_export(gpg.fingerprint))
+    try:
+        run(gpg.network_import(gpg.fingerprint))
+        failed = False
+    except:
+        failed = True
+    finally:
+        assert failed  # server removes the key after revocation.
+
+
 def test_delete(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     email = "testing_user@testing.testing"
