@@ -188,7 +188,7 @@ class GnuPG:
             "S",
             "Q",
             "1",
-            "0",
+            "3y",
             "y",
             self.username,
             self.email,
@@ -213,18 +213,18 @@ class GnuPG:
             "addkey",
             "10",
             "1",
-            "0",
+            "3y",
             "addkey",
             "11",
             "A",
             "S",
             "Q",
             "1",
-            "0",
+            "3y",
             "addkey",
             "12",
             "1",
-            "0",
+            "3y",
             "save",
         )
         return self.read_output(command, inputs)
@@ -245,6 +245,19 @@ class GnuPG:
         command = self.command("--command-fd", "0", "--delete-key", uid)
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
+
+    def revoke(self, uid=""):
+        command = self.command(
+            "--command-fd",
+            "0",
+            "--gen-revoke",
+            uid,
+            with_passphrase=True,
+        )
+        command.remove("--batch")
+        inputs = self.encode_inputs(self.passphrase, "y", "0", " ", "y")
+        revoke_cert = self.read_output(command, inputs)
+        return self.text_import(revoke_cert)
 
     def trust(self, uid="", level=5):
         level = str(int(level))
