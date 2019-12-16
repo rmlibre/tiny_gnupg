@@ -1,9 +1,18 @@
-# Changes for version 0.4.5
+# Changes for version 0.4.6
 ## Known Issues
 - Because of Debian [bug #930665](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665), and related GnuPG [bug #T4393](https://dev.gnupg.org/T4393), importing keys from the default keyserver [keys.openpgp.org](https://keys.openpgp.org/) doesn't work automatically on all systems. Not without email confirmation, at least. That's because the keyserver will not publish uid information attached to a key before a user confirms access to the email address assigned to the uploaded key. And, because GnuPG folks are still holding up the merging, and back-porting, of patches that would allow GnuPG to automatically handle keys without uids gracefully. This effects the `network_import()` method specifically, but also the `text_import()` and `file_import()` methods, if they happen to be passed a key or filename argument which refers to a key without uid information. The gpg2 binary in this package can be replaced manually if a user's system has access to a patched version.
+- Because of GnuPG [bug #T3065](https://dev.gnupg.org/T3065#111023), and related [bug #1788190](https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1788190), the `--keyserver` and `--keyserver-options http-proxy` options won't work with onion addresses, and they cause a crash if a keyserver lookup is attempted. This is not entirely an issue for us since we don't use gnupg's networking interface. In fact, we set these environment variables anyway to crash on purpose if gnupg tries to make a network connection. And in case the bug ever gets fixed (it won't), or by accident the options do work in the future, then a tor SOCKSv5 connection will be used instead of a raw connection.
 - This program may only be reliably compatible with keys that are also created with this program. That's because our terminal parsing is reliant on specific metadata to be similar across all encountered keys. It seems most keys have successfully been parsed with recent updates, though more testing is needed.
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
+## Minor Changes
+- Turned off options in gpg2.conf `require-cross-certification` and `no-comment` because one or both may be causing a bug where using private keys raises an "unusable private key" error.
+
+## Major Changes
+- Added support for a default package-wide gpg2.conf file.
+
+
+# Changes for version 0.4.5
 ## Minor Changes
 - Updated package metadata files to be gpg2.conf aware.
 ## Major Changes
