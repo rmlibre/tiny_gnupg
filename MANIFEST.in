@@ -7,11 +7,13 @@ include tests/test_tiny_gnupg.py
 include tiny_gnupg/__init__.py
 include tiny_gnupg/tiny_gnupg.py
 include tiny_gnupg/gpghome/gpg2
+include tiny_gnupg/gpghome/gpg2.conf
 exclude tiny_gnupg/gpghome/tofu.db
 exclude tiny_gnupg/gpghome/sshcontrol
 exclude tiny_gnupg/gpghome/random_seed
 exclude tiny_gnupg/gpghome/trustdb.gpg
 exclude tiny_gnupg/gpghome/pubring.kbx
 exclude tiny_gnupg/gpghome/pubring.kbx~
-recursive-exclude tiny_gnupg/gpghome/private-keys-v1.d *
+recursive-exclude tiny_gnupg/gpghome/crls.d *
 recursive-exclude tiny_gnupg/gpghome/openpgp-revocs.d *
+recursive-exclude tiny_gnupg/gpghome/private-keys-v1.d *

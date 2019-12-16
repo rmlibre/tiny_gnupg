@@ -237,7 +237,7 @@ def test_key_signing(gpg):
     assert keyring != signed_keying
     condensed_keyring = signed_keying.replace(" ", "")
     fingerprint = gpg.fingerprint[-16:]
-    assert f"<{dev_email}>\nsig!{fingerprint}" in condensed_keyring
+    assert f"<{dev_email}>\nsig!0x{fingerprint}" in condensed_keyring
 
 
 def test_revoke(gpg):

@@ -58,6 +58,8 @@ class GnuPG:
             "--yes",
             "--batch",
             "--quiet",
+            "--options",
+            str(Path(self.home).absolute() / "gpg2.conf"),
             "--homedir",
             self.home,
             "--pinentry-mode",
@@ -70,6 +72,8 @@ class GnuPG:
             "--yes",
             "--batch",
             "--quiet",
+            "--options",
+            str(Path(self.home).absolute() / "gpg2.conf"),
             "--homedir",
             self.home,
         ]
