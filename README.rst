@@ -11,6 +11,18 @@ there's likely, and often bugs floating around, and the api is subject
 to change. Contributions are welcome.
 
 
+
+
+Install
+-------
+
+.. code:: bash
+
+    pip install tiny_gnupg
+
+
+
+
 Usage Example
 -------------
 
@@ -66,9 +78,7 @@ Usage Example
     # First, we'll import Alice's key from the keyserver (This requires
     # a tor system installation. Or an open tor browser, and the tor_port
     # attribute set to 9150) ->
-    import asyncio
-
-    run = asyncio.get_event_loop().run_until_complete
+    from tiny_gnupg import run
 
     run(gpg.network_import(uid="alice@email.domain"))
 
@@ -88,11 +98,13 @@ Usage Example
     # Then Alice can simply receive the encrypted message and decrypt it ->
     decrypted_msg = gpg.decrypt(encrypted_message)
 
+
 On most systems, because of a bug in GnuPG_, email verification of uploaded keys will be necessary for others to import them from the keyserver. That's because GnuPG will throw an error immediately upon trying to import keys with their uid information stripped off. We will replace the gpg2 executable as soon as a patch becomes available upstream.
 
 If the gpg2 executable doesn't work on your system, replace it with a copy of the executable found on your system. The package's executable can be found at: package_path/gpghome/gpg2. This path is also available from a class instance under the instance.executable attribute. Your system gpg2 executable is probably located at: /usr/bin/gpg2. You could also type: whereis gpg2 :to find it. If it's not there, then you'll have to install it with your system's equivalent of: sudo apt-get install gnupg2.
 
 .. _GnuPG: https://dev.gnupg.org/T4393
+
 
 
 
@@ -107,8 +119,7 @@ Networking Example
     # networking interface is also available to users. These utilities
     # allow arbitrary POST and GET requests to clearnet, or onionland,
     # websites ->
-    import asyncio
-    from tiny_gnupg import GnuPG
+    from tiny_gnupg import GnuPG, run
 
 
     async def read_url(url):
@@ -116,8 +127,6 @@ Networking Example
         async with client.network_get(url) as response:
             return await response.text()
 
-
-    run = asyncio.get_event_loop().run_until_complete
 
     # Now we can read webpages with GET requests ->
     page_html = run(read_url("https://keys.openpgp.org/"))
@@ -163,9 +172,12 @@ Networking Example
     # upload, and import keys. This provides a nice, default layer of
     # privacy to our communication needs. Have fun little niblets!
 
+
 These networking tools work off instances of aiohttp.ClientSession. To learn more about how to use their POST and GET requests, you can read the docs here_.
 
 .. _here: https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+
+
 
 
 About Torification
@@ -189,10 +201,13 @@ About Torification
     # library. So, if gnupg makes these kinds of silent connections,
     # it can inadvertently reveal a user's ip.
 
+
 Using torify requires a tor installation on the user system. If it's
 running Debian/Ubuntu then this guide_ could be helpful.
 
 .. _guide: https://2019.www.torproject.org/docs/debian.html.en
+
+
 
 
 Extras
@@ -220,10 +235,6 @@ Extras
     gpg.verify(message=signed_data)  # throws if invalid
 
     # Importing key files is also a thing ->
-    import asyncio
-
-    run = asyncio.get_event_loop().run_until_complete
-
     path_to_file = "/home/user/keyfiles/"
     run(gpg.file_import(path=path_to_file + "alices_key.asc"))
 
@@ -244,7 +255,31 @@ Extras
     gpg.text_import(key=my_key)
 
 
-    # When a user is done with a key, it can be deleted from the package
-    # keyring like this ->
+
+
+Retiring Keys
+-------------
+
+After a user no longer considers a key useful, or wants to dissociate from the key, then they have some options:
+
+.. code:: python
+
+    from tiny_gnupg import GnuPG, run
+
+    gpg = GnuPG(
+        username="username",
+        email="username@user.net",
+        passphrase="test_user_passphrase",
+    )
+
+    # They can revoke their key then distribute it publicly (somehow)
+    # (the keyserver can't currently handle key revocations) ->
+    gpg.revoke(gpg.fingerprint)
+    key = gpg.text_export(gpg.fingerprint)  # <--  Distribute this!
+
+    # And/or they can delete the key from the package keyring like
+    # this ->
     gpg.delete(uid="username@user.net")
 
+
+.. _key revocations: https://gitlab.com/hagrid-keyserver/hagrid/issues/137
