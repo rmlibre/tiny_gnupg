@@ -17,10 +17,13 @@ tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 with open("README.rst", "r") as readme:
     long_description = readme.read()
 
+with open("CHANGES.rst", "r") as changelog:
+    long_description += f"\n\n\n\n{changelog.read()}"
+
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.4.7",
+    version="0.4.8",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
@@ -73,7 +76,6 @@ setup(
             "SOCKSv5",
             "socks5",
             "web",
-
         ]
     ),
     include_package_data=True,
@@ -86,4 +88,4 @@ setup(
     ],
     tests_require=["pytest"],
     packages=find_packages(),
-)
+) if __name__ == "__main__" else 0
