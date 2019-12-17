@@ -25,17 +25,15 @@ tiny_gnupg instead of the --user flag.
 import sys
 import pytest
 import asyncio
-from time import sleep
 from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import SocksConnector
 
 PACKAGE_PATH = str(Path(__file__).absolute().parent.parent)
 sys.path.append(PACKAGE_PATH)
-run = asyncio.get_event_loop().run_until_complete
 new_task = asyncio.get_event_loop().create_task
 
-from tiny_gnupg import GnuPG
+from tiny_gnupg import GnuPG, run
 
 dev_signed_message = """-----BEGIN PGP MESSAGE-----
 
@@ -325,8 +323,9 @@ def test_revoke(gpg):
     except:
         failed = True
     finally:
-        assert failed  # server removes the key after revocation?
-                       # Also, GnuPG bug #T4393
+        assert failed  # server removes the key after revocation? No.
+                       # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
+                       # GnuPG bug #T4393 will cause crash
 
 def test_delete(gpg):
     dev_email = "gonzo.development@protonmail.ch"
