@@ -8,7 +8,7 @@
 # All rights reserved.
 #
 
-__all__ = ["GnuPG"]
+__all__ = ["GnuPG", "run"]
 
 import json
 import asyncio
@@ -70,20 +70,6 @@ class GnuPG:
     def set_base_command(self, torify=False):
         """Contruct the default commands used to call gnupg2"""
         torify = ["torify"] if torify else []
-        self.base_passphrase_command = torify + [
-            self.executable,
-            "--yes",
-            "--batch",
-            "--quiet",
-            "--options",
-            str(Path(self.home).absolute() / "gpg2.conf"),
-            "--homedir",
-            self.home,
-            "--pinentry-mode",
-            "loopback",
-            "--passphrase-fd",
-            "0",
-        ]
         self.base_command = torify + [
             self.executable,
             "--yes",
@@ -93,6 +79,12 @@ class GnuPG:
             str(Path(self.home).absolute() / "gpg2.conf"),
             "--homedir",
             self.home,
+        ]
+        self.base_passphrase_command = self.base_command + [
+            "--pinentry-mode",
+            "loopback",
+            "--passphrase-fd",
+            "0",
         ]
 
     def set_fingerprint(self, uid=""):
@@ -207,14 +199,7 @@ class GnuPG:
             Subkey  - Authentication
             Subkey  - Encryption
         """
-        command = [
-            self.executable,
-            "--yes",
-            "--quiet",
-            "--homedir",
-            self.home,
-            "--pinentry-mode",
-            "loopback",
+        command = self.command(
             "--expert",
             "--full-gen-key",
             "--with-colons",
@@ -222,9 +207,9 @@ class GnuPG:
             "0",
             "--status-fd",
             "1",
-            "--passphrase-fd",
-            "0",
-        ]
+            with_passphrase=True,
+        )
+        command.remove("--batch")
         inputs = self.encode_inputs(
             self.passphrase,
             "11",
@@ -283,6 +268,8 @@ class GnuPG:
         """Deletes secret & public key matching `uid` from keyring"""
         uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
         try:
+            if not uid in self.list_keys(uid, secret=True):
+                raise LookupError("no secret key in keyring")
             command = self.command(
                 "--command-fd",
                 "0",
@@ -292,7 +279,7 @@ class GnuPG:
             inputs = self.encode_inputs("y", "y")
             self.read_output(command, inputs)
         except:
-            print("no private key found, trying public key...")
+            print("no secret key, trying to delete public key...")
         command = self.command("--command-fd", "0", "--delete-key", uid)
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
@@ -445,12 +432,13 @@ class GnuPG:
             else:
                 raise exception
 
-    def raw_list_keys(self, uid=""):
+    def raw_list_keys(self, uid="", secret=False):
         """Returns the terminal output of the --list-keys `uid` option"""
+        secret = "-secret" if secret else ""
         if uid:
-            command = self.command("--list-keys", uid)
+            command = self.command(f"--list{secret}-keys", uid)
         else:
-            command = self.command("--list-keys")
+            command = self.command(f"--list{secret}-keys")
         return self.read_output(command)
 
     def format_list_keys(self, raw_list_keys_terminal_output):
@@ -470,12 +458,12 @@ class GnuPG:
         ]
         return dict(zip(fingerprints, emails))
 
-    def list_keys(self, uid=""):
+    def list_keys(self, uid="", secret=False):
         """
         Returns a dict of fingerprints & email addresses of all keys in
         the local keyring, or optionally the key matching `uid`.
         """
-        return self.format_list_keys(self.raw_list_keys(uid))
+        return self.format_list_keys(self.raw_list_keys(uid, secret))
 
     def key_email(self, uid=""):
         """Returns the email address on the key matching `uid`"""
