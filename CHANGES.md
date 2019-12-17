@@ -6,10 +6,11 @@
 - Currently, the package is part synchronous, and part asynchronous. This is not ideal, so a decision has to be made: either to stay mixed style, or choose one consistent style.
 - We're still in unstable and have to build out our test suite. Contributions welcome.
 ## Minor Changes
-- Turned off options in gpg2.conf `require-cross-certification` and `no-comment` because one or both may be causing a bug where using private keys raises an "unusable private key" error.
-
+- Added to test cases.
+- Changed the project long description in the `README.rst`.
+- Added docstrings to all the methods in the `GnuPG` class, and the class itself.
 ## Major Changes
-- Added support for a default package-wide gpg2.conf file.
+- Turned off options in gpg2.conf `require-cross-certification` and `no-comment` because one or both may be causing a bug where using private keys raises an "unusable private key" error.
 
 
 # Changes for version 0.4.5
@@ -38,8 +39,8 @@
 
 # Changes for version 0.4.2
 ## Minor Changes
-- Added some keyword argument names to README.rst tutorials.
-- Added section in README.rst about torification.
+- Added some keyword argument names to `README.rst` tutorials.
+- Added section in `README.rst` about torification.
 ## Major Changes
 - Added a check in `encrypt()` for the recipient key in the local keyring which throws if it doesn't exist. This is to prevent gnupg from using wkd to contact the network to find the key on a keyserver.
 - Added a new `torify=False` kwarg to `__init__()` which prepends `"torify"` to each gpg2 command if set to `True`. This will make sure that if gnupg makes any silent connections to keyservers or the web, that they are run through tor and don't expose a users ip address inadvertently.
@@ -55,7 +56,7 @@
 - Added keywords to `setup.py`
 - Added copyright notice to LICENSE file.
 - Code cleanups.
-- Updated README.rst tutorials.
+- Updated `README.rst` tutorials.
 - Added new tests.
 - Include .gitignore in MANIFEST.in for PyPI.
 - Made all path manipulations more consistent by strictly using pathlib.Path for directory specifications.
@@ -120,7 +121,7 @@
 # Changes for version 0.3.2
 ## Minor Changes
 - Rolled back the changes in `trust()` that checked for trust levels on keys to avoid sending an unnecessary byte of data through the terminal. Mostly because the attempted fix did not fix the issue. And the correct fix involves a wide branching of state and argument checking. That runs contrary to the goal of the package for simplicity, so it isn't going to be addressed for now.
-- Edited some of the README.rst tutorials.
+- Edited some of the `README.rst` tutorials.
 ## Major Changes
 - Fix bug in `file_import()` method where await wasn't called on the keyfile.read() object, leading to a crash.
 
@@ -145,7 +146,7 @@
 
 # Changes for version 0.2.9
 ## Minor Changes
-- Edited some of the README.rst tutorials
+- Edited some of the `README.rst` tutorials
 - Changed `file_import()`'s `filename` kwarg to `path` for clarity.
 - Fixed bug in `trust()` which would allow a float to be passed to the terminal when an integer was needed.
 - Changed the way the email address in displayed in `network_export()`, removing the surrounding list brackets.
@@ -157,7 +158,7 @@
 
 # Changes for version 0.2.8
 ## Minor Changes
-- Edited some of the README.rst tutorials.
+- Edited some of the `README.rst` tutorials.
 ## Major Changes
 - Fixed a bug in the `trust()` method which caused it to never complete execution.
 - Fixed a bug in the `trust()` method which falsely made 4 the highest trust level, instead of 5.
@@ -165,13 +166,13 @@
 
 # Changes for version 0.2.7
 ## Minor Changes
-- Fixed statement in README.rst describing bug #T4393.
+- Fixed statement in `README.rst` describing bug #T4393.
 
 
 # Changes for version 0.2.6
 ## Minor Changes
 - Typos, redundancies and naming inaccuracies fixed around the code and documentation.
-- Added a new POST request tutorial to the README.rst.
+- Added a new POST request tutorial to the `README.rst`.
 - Added `"local_user"` kwarg to some more methods where the output could at least be partially determined by the point of view of the key gnupg thinks is the user's.
 ## Major Changes
 - Added a signing toggle to the `encrypt(sign=True)` method. Now, the method still automatically signs encrypted messages, but users can choose to turn off this behavior.
