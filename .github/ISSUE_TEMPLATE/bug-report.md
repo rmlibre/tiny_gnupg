@@ -1,5 +1,5 @@
 ---
-name: Bug report
+name: Bug Report
 about: Create a report to help us improve
 title: "[Issue Severity] [Issue Name] [Issue Type] [Version]"
 labels: ''
@@ -24,7 +24,8 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Desktop (please complete the following information):**
- - Version [e.g. v0.4.2]
+- Linux Distro
+ - tiny_gnupg Version [e.g. v0.4.2]
 
 **Additional context**
 Add any other context about the problem here.
