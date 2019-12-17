@@ -102,6 +102,8 @@ def test_command(gpg):
 
 
 def test_cipher(gpg):
+    test_email = "support@keys.openpgp.org"
+    run(gpg.network_import(test_email))
     message = "\n  twenty\ntwo\narmed\ndogs\nrush\nthe\nkibble  \n\n"
     for trust_level in range(1, 6):
         for fingerprint in gpg.list_keys():
@@ -126,6 +128,15 @@ def test_cipher(gpg):
             uid=gpg.fingerprint,
             sign=False,
         )
+        nonstandard_encrypted_message_0 = gpg.encrypt(
+            message=message,
+            uid=test_email,
+        )
+        nonstandard_encrypted_message_1 = gpg.encrypt(
+            message=message,
+            uid=test_email,
+            sign=False
+        )
         assert gpg.decrypt(encrypted_message_0) == message
         assert gpg.decrypt(encrypted_message_1) == message
         assert gpg.decrypt(encrypted_message_2) == message
@@ -139,6 +150,7 @@ def test_cipher(gpg):
         gpg.verify(signed_message_1)
         gpg.verify(signed_message_2)
         gpg.verify(signed_message_3)
+    gpg.delete(test_email)
 
 
 def test_file_io(gpg):
@@ -260,7 +272,8 @@ def test_revoke(gpg):
     except:
         failed = True
     finally:
-        assert failed  # server removes the key after revocation.
+        assert failed  # server removes the key after revocation?
+                       # Also, GnuPG bug #T4393
 
 
 def test_delete(gpg):
@@ -270,7 +283,7 @@ def test_delete(gpg):
     for key_email in gpg.list_keys().values():
         if key_email == email:
             amount_of_test_keys += 1
-    gpg.delete(email)
+    gpg.delete(gpg.fingerprint)
     amount_of_test_keys_after_delete = 0
     for key_email in gpg.list_keys().values():
         if key_email == email:
