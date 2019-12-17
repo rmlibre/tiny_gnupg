@@ -1,5 +1,3 @@
-
-
 ``Changelog``
 =============
 
@@ -68,8 +66,11 @@ Minor Changes
 -  Documentation improvements. ``CHANGES.md`` has been converted to
    ``CHANGES.rst`` for easy integration into ``README.rst`` and
    ``long_description`` of ``setup.py``.
+-  ``README.rst`` tutorial expanded.
 -  Condensed command constructions in ``set_base_command()`` and
    ``gen_key()`` by reducing redundancy.
+-  Fixed ``delete()`` method's print noisy output when called on a key
+   which doesn't have a secret key in the package's keyring.
 
 
 Major Changes
@@ -82,7 +83,17 @@ Major Changes
    function in the package. It is now importable with
    ``from tiny_gnupg import run`` or ``from tiny_gnupg import *``. It
    was present in all of the tutorials, and since we haven’t decided to
-   go all async or sync yet, it’s a nice helper.
+   go either all async or sync yet, it’s a nice helper.
+-  Added ``raw_packets(target="")`` method which takes in OpenPGP data,
+   like a message or key, and outputs the raw terminal output of the
+   ``--list-packets`` option. Displays very detailed information of all
+   the OpenPGP metadata on ``target``.
+-  Added ``packet_fingerprint(target="")`` method which returns the
+   issuer fingerprint scraped off of the metadata returned from
+   ``raw_packets(target)``. This is a very effective way to retrieve
+   uid information from OpenPGP signatures, messages and keys to
+   determine beforehand whether the associated sender's key is or isn't
+   already in the package's keyring.
 
 
 
