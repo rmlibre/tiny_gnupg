@@ -187,7 +187,7 @@ About Torification
     # local keyring. tiny_gnupg doesn't use gnupg's networking
     # interface, and ensures tor connections through the aiohttp_socks
     # library. So, if gnupg makes these kinds of silent connections,
-    # it can inadvertently reveal a users ip.
+    # it can inadvertently reveal a user's ip.
 
 Using torify requires a tor installation on the user system. If it's
 running Debian/Ubuntu then this guide_ could be helpful.
