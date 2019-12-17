@@ -18,7 +18,7 @@ Install
 
 .. code:: bash
 
-    pip install tiny_gnupg
+    pip install --user tiny_gnupg
 
 
 
