@@ -17,7 +17,8 @@ different, so this will lead to crashes and failing test cases.
 
 A workaround, if a system installation is desired or can't be deleted,
 is to move this test close to the system script. One directory up, and
-into a tests folder.
+into a tests folder. This is less desirable if sudo was used to install
+tiny_gnupg instead of the --user flag.
 """
 
 
@@ -56,8 +57,6 @@ def gpg():
     relative_gpg_path = str(Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome")
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
-    # gpg.reset_daemon()
-    # sleep(0.2)
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -368,3 +367,7 @@ def test_auto_fetch_methods(gpg):
     gpg.delete(dev_fingerprint)
     run(gpg.auto_verify(dev_signed_message))
     gpg.delete(dev_fingerprint)
+
+
+def test_reset_daemon(gpg):
+    gpg.reset_daemon()
