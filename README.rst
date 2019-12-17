@@ -1,13 +1,14 @@
 tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 ===============================================================================
-A small, simple & intuitive wrapper for creating, using and managing
-GnuPG's Ed-25519 curve keys. We are in favor of reducing code size and
-complexity with strong and bias defaults over flexibility in the api.
-Contributions welcome.
+A linux specific, small, simple & intuitive wrapper for creating, using
+and managing GnuPG's Ed25519 curve keys. In our design, we favor
+reducing code size & complexity with strong, bias defaults over
+flexibility in the api. Our goal is to turn the powerful, complex,
+legacy gnupg system into a fun and safe tool to develop with.
 
-This package is only seeking to be compatible with linux systems, and
-is currently in unstable beta. It works like a charm, but there's likely
-bugs floating around, and the api is subject to change.
+This project is currently in unstable beta. It works like a charm, but
+there's likely, and often bugs floating around, and the api is subject
+to change. Contributions are welcome.
 
 
 Usage Example
