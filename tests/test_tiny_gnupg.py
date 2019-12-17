@@ -8,6 +8,19 @@
 # All rights reserved.
 #
 
+
+"""
+To test tiny_gnupg.py, there SHOULD NOT be a system installation of
+tiny_gnupg. Otherwise this import statement for the module will call the
+system for the package information stored there. But the keyrings are
+different, so this will lead to crashes and failing test cases.
+
+A workaround, if a system installation is desired or can't be deleted,
+is to move this test close to the system script. One directory up, and
+into a tests folder.
+"""
+
+
 import sys
 import pytest
 import asyncio
@@ -23,6 +36,16 @@ new_task = asyncio.get_event_loop().create_task
 
 from tiny_gnupg import GnuPG
 
+dev_signed_message = """-----BEGIN PGP MESSAGE-----
+
+owGbwMvMwCG2Ttv9l9wXfy7G08JJDLE/FmqVpBaXKOSmFhcnpqdydZSyMIhxMMiK
+KbIY/j3jPzNx/ZogrbmOME2sTCAdDFycAjARoUKG/zHTV94+3btJc3XDD3nR3df4
+p0iGPLWJkdRac/B7zMIH9/UYGb5uduZu5Xe5LNCwWcmRfUNiyV+97vbinoUxh2un
+MDAbsAEA
+=rP7l
+-----END PGP MESSAGE-----
+"""
+
 
 @pytest.fixture(scope="module")
 def gpg():
@@ -33,8 +56,8 @@ def gpg():
     relative_gpg_path = str(Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome")
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
-    gpg.reset_daemon()
-    sleep(0.2)
+    # gpg.reset_daemon()
+    # sleep(0.2)
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -59,7 +82,7 @@ def test_instance(gpg):
     assert gpg.searchserver == test_gpg.searchserver
     assert gpg.base_command == test_gpg.base_command
     assert gpg.base_passphrase_command == test_gpg.base_passphrase_command
-    #
+    ###
     assert gpg.username == "testing_user"
     assert gpg.email == "testing_user@testing.testing"
     assert len(gpg.fingerprint) == 40
@@ -252,6 +275,37 @@ def test_key_signing(gpg):
     assert f"<{dev_email}>\nsig!0x{fingerprint}" in condensed_keyring
 
 
+def test_packet_parsing(gpg):
+    signature = gpg.sign("test")
+    signed_encrypted_message = gpg.encrypt("test", gpg.fingerprint)
+    encrypted_message = gpg.encrypt("test", gpg.fingerprint, sign=False)
+    gpg_key = gpg.text_export(gpg.fingerprint)
+    ###
+    signature_fingerprint = gpg.packet_fingerprint(signature)
+    signed_encrypted_message_fingerprint = gpg.packet_fingerprint(
+        signed_encrypted_message
+    )
+    encrypted_message_fingerprint = gpg.packet_fingerprint(
+        encrypted_message
+    )
+    gpg_key_fingerprint = gpg.packet_fingerprint(gpg_key)
+    ###
+    key = gpg.list_keys(gpg.fingerprint)
+    key_from_signature = gpg.list_keys(signature_fingerprint)
+    key_from_signed_encrypted_message = gpg.list_keys(
+        signed_encrypted_message_fingerprint
+    )
+    key_from_encrypted_message = gpg.list_keys(
+        encrypted_message_fingerprint
+    )
+    key_from_gpg_key = gpg.list_keys(gpg_key_fingerprint)
+    ###
+    assert key == key_from_signature
+    assert key == key_from_signed_encrypted_message
+    assert key != key_from_encrypted_message  # anonymous message sender
+    assert key == key_from_gpg_key
+
+
 def test_revoke(gpg):
     raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" not in raw_list_keys
@@ -275,7 +329,6 @@ def test_revoke(gpg):
         assert failed  # server removes the key after revocation?
                        # Also, GnuPG bug #T4393
 
-
 def test_delete(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     email = "testing_user@testing.testing"
@@ -289,4 +342,29 @@ def test_delete(gpg):
         if key_email == email:
             amount_of_test_keys_after_delete += 1
     assert amount_of_test_keys - 1 == amount_of_test_keys_after_delete
-    gpg.delete(dev_email)
+    while True:
+        try:
+            gpg.delete(gpg.email)
+        except:
+            break
+    while True:
+        try:
+            gpg.delete("gonzo.development@protonmail.ch")
+        except:
+            break
+
+
+def test_auto_fetch_methods(gpg):
+    dev_email = "gonzo.development@protonmail.ch"
+    dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
+    message = "test message"
+    msg = run(gpg.auto_decrypt(dev_signed_message))
+    gpg.verify(dev_signed_message)
+    assert msg.strip() == message
+    message_fingerprint = gpg.packet_fingerprint(dev_signed_message)
+    key_from_message = gpg.list_keys(message_fingerprint)
+    key_from_fingerprint = gpg.list_keys(dev_fingerprint)
+    assert key_from_message == key_from_fingerprint
+    gpg.delete(dev_fingerprint)
+    run(gpg.auto_verify(dev_signed_message))
+    gpg.delete(dev_fingerprint)
