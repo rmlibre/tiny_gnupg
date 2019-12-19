@@ -107,6 +107,19 @@ async def async_method_runner(gpg):
 
 
 def test_instance(gpg):
+    while True:
+        try:
+            gpg.delete(gpg.email)
+        except:
+            break
+    try:
+        gpg.set_home_permissions("/ridiculous_root_directory_not_real")
+    except:
+        """
+        Successfully failed to change permissions on an invalid dir.
+        We refrain from testing on a root folder that may actually exist
+        for safety of the tester reasons.
+        """
     gpg.gen_key()
     test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
     assert gpg.username == test_gpg.username
@@ -172,13 +185,27 @@ def test_command(gpg):
         assert passphrase_command == gpg.command(with_passphrase=True)
 
 
+def test_export_import(gpg):
+    secret_key = gpg.text_export(gpg.fingerprint, secret=True)
+    gpg.text_import(secret_key)
+    try:
+        gpg.text_export(gpg.fingerprint, secret="Non-boolean value")
+    except:
+        """Successfully blocked non-boolean"""
+
+
 def test_cipher(gpg):
     test_email = "support@keys.openpgp.org"
     run(gpg.network_import(test_email))
     message = "\n  twenty\ntwo\narmed\ndogs\nrush\nthe\nkibble  \n\n"
-    for trust_level in range(1, 6):
+    for trust_level in range(0, 7):
         for fingerprint in gpg.list_keys():
-            gpg.trust(fingerprint, trust_level)
+            try:
+                gpg.trust(fingerprint, trust_level)
+            except ValueError as invalid_trust_level:
+                if not 0 < int(trust_level) < 6:
+                    """Successfully blocked invlaid trust level"""
+                    continue
         encrypted_message_0 = gpg.encrypt(
             message=message,
             uid=gpg.fingerprint,
@@ -217,6 +244,10 @@ def test_cipher(gpg):
         signed_message_2 = gpg.sign(signed_message_1)
         signed_message_3 = gpg.sign(signed_message_2)
         signed_message_3 = gpg.sign(signed_message_3)
+        try:
+            gpg.sign(message, key="Non boolean value")
+        except:
+            """Successfully blocked non-boolean value"""
         gpg.verify(signed_message_0)
         gpg.verify(signed_message_1)
         gpg.verify(signed_message_2)
@@ -245,7 +276,7 @@ def test_networking(gpg):
     assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
     assert dev_fingerprint == fingerprint
-    assert fingerprint == next(iter(gpg.list_keys(dev_fingerprint)))
+    assert fingerprint == pop(gpg.list_keys(dev_fingerprint))
     email = gpg.key_email(fingerprint)
     assert dev_email == email
     assert email == gpg.list_keys(dev_email)[fingerprint]
@@ -266,15 +297,15 @@ def test_networking(gpg):
     network_key = run(gpg.get(test_key_url))
     assert local_key != network_key  # removed and/or reencoded uids
     try:
-        gpg.text_import(network_key)
         failed = False
+        gpg.text_import(network_key)
     except:
         failed = True  # GnuPG bug #T4393
     finally:
         assert failed
     try:
-        run(gpg.network_import(gpg.fingerprint))
         failed = False
+        run(gpg.network_import(gpg.fingerprint))
     except:
         failed = True  # GnuPG bug #T4393
     finally:
@@ -285,6 +316,10 @@ def test_networking(gpg):
     # after we sent them a bug report. GnuPG currently has "newer" and
     # "older" style header formatting, which leads to inconsistent
     # results when handling newer ECC keys.
+    try:
+        run(gpg.network_import("nonsense uid data (HOPEFULLY)"))
+    except FileNotFoundError:
+        """Successfully failed to retrieve data for bogus query"""
 
 
 def test_network_concurrency(gpg):
@@ -382,6 +417,10 @@ def test_auto_fetch_methods(gpg):
     assert len(packets_0) >= 4
     assert len(packets_1) >= 4
     assert len(packets_2) >= 11
+    try:
+        gpg.list_packets(20*"Non-OpenPGP data")
+    except:
+        """Successfully failed when invalid data sent for parsing"""
     ###
     fingerprint_0 = gpg.packet_fingerprint(dev_signed_message)
     fingerprint_1 = gpg.packet_fingerprint(dev_signed_message)
@@ -398,8 +437,8 @@ def test_auto_fetch_methods(gpg):
     assert fingerprint_3_key == key_from_fingerprint
     ###
     try:
-        run(gpg.auto_verify(dev_signed_encrypted_message))
         failed = False
+        run(gpg.auto_verify(dev_signed_encrypted_message))
     except Exception as exception:
         failed = True
         keyid = exception.value
@@ -408,8 +447,8 @@ def test_auto_fetch_methods(gpg):
         assert failed  # signed encrypted message shows only recipient
         # from the outside (without the decryption key).
     try:
-        run(gpg.auto_verify(dev_encrypted_message))
         failed = False
+        run(gpg.auto_verify(dev_encrypted_message))
     except Exception as exception:
         failed = True
         keyid = exception.value
@@ -425,8 +464,8 @@ def test_revoke(gpg):
     raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" not in raw_list_keys
     try:
-        run(gpg.network_import(gpg.fingerprint))
         failed = False
+        run(gpg.network_import(gpg.fingerprint))
     except:
         failed = True
     finally:
@@ -437,8 +476,8 @@ def test_revoke(gpg):
     assert "[revoked]" in raw_list_keys
     run(gpg.network_export(gpg.fingerprint))
     try:
-        run(gpg.network_import(gpg.fingerprint))
         failed = False
+        run(gpg.network_import(gpg.fingerprint))
     except:
         failed = True
     finally:
@@ -457,8 +496,7 @@ def test_delete(gpg):
     gpg.delete(gpg.fingerprint)
     amount_of_test_keys_after_delete = 0
     for key_email in gpg.list_keys().values():
-        if key_email == email:
-            amount_of_test_keys_after_delete += 1
+        amount_of_test_keys_after_delete += 1 if key_email == email else 0
     assert amount_of_test_keys - 1 == amount_of_test_keys_after_delete
     while True:
         try:
