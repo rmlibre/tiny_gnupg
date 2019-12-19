@@ -35,13 +35,54 @@ new_task = asyncio.get_event_loop().create_task
 
 from tiny_gnupg import GnuPG, run
 
+
+def pop(dictionary):
+    return next(iter(dictionary))
+
+
+dev_signed_encrypted_message = """-----BEGIN PGP MESSAGE-----
+
+hQGMA4/LbsN5/I9OAQwA1eu+s8bp1d6G5GXTAxajqOfuNkUb2/O8y0X1csZv5Mcf
+P0xDE3c4m0MVwuJx2UlxWwhLZzVB8gpXj5tOONNDT/AfQw/51EBbNBuMfBC1IgWb
+DHYyeuhabZwAAJjbhIjZRk4EvwkIyARD4RrCKaA0m36UVX8jHGFhCJUEyhMErBel
+QMU50/2Bt88QPZUnG6en+C9WMjYSKYHJv8+B8MfoXjV6ye4X4ugLnr0/OyknKh9F
+46jh+nayCj3TZxlFVP4y2yf3zYhfd7EepZYpsmzTW2GNiy+j0lomvKcnE7nGaRT7
+e53Xg1eWrWi3pE0JOiF5tgMngi23eVqQGmaJ3zbjIClpIhopEqXkNP/1oQIAMrK4
+JhK/1sugWxYOm0M6xnZ0gfTuf8xSJ4xOzmBb4TE7HvjD6IGQQokzQ/mumlXvZxOy
+pymLMTW2yn8CZ5KqOvrC8ObhCYvBUpYRAXcKUpxv+uA1gSlSzH23VSBcSsXJXq5P
+TaSnR2yJZDu3PnXCUkr10sAAAbNUS1pLA54EJ38WPhjjSqpHFmPC/ghRoQTn/y37
+ka5pvw7ENm0s8N/er6xJyrwGr//8HWebuBxQbRX7MeqYIzgrthfga8xiOF6KKxCC
+bRoey0UBYeq6ojXgnV4wLuEffW9O9PB8P+8wpcFNnHufrDV01SHRbxmjysg2JLfD
+EkWVGM9BG3EZmnzxp05NsMXsm4srIvjKlaDyNZvwL6h/gm0wE73BjESkQ6OVxwwB
+K1nyKCiCMxXW32MA9ax31q0a
+=D9D+
+-----END PGP MESSAGE-----
+"""
+
+
+dev_encrypted_message = """-----BEGIN PGP MESSAGE-----
+
+hQGMA4/LbsN5/I9OAQv/YCqME/HGJ8goX95twAGjehyenAfdsKG+jU25qUbJ2N2q
+YJavKRpodjfLluEI/nQ51Hj+x88DzLrb6W7FtMWO17iHLwSMHXLY+6yw1dg78xeX
+59CwaiaUeW3gmibWW5k3btFuZZVlNxwbAAxlWuJJFKauHQwtZUXFAcry3r50+RmE
+2GGaZFndfb+F6uPjglsZlrMy0gMnBSRiJEbvHpWSIq9ZOr126stsR7GswV76fjEa
+vdrgCeU96B+IGzJt4ltN660BADHb0JwKHAPSnHR4CRfwuEQEZlHlUY3m8oULFRHM
+NilZaEF61QMV+o35FZZC7gLqU3hCbpsxygwegdXYMekD0soCH2CkvbvxybzFvjmg
+T4QNiHEAXr5J/jJszoXvn+SFir1gyXlBiCdvwIgiSm7vt+/Zzw30GQOv7G4RFI7b
+ehci9jSE47vfDzWp7IrCYX1qJy44lcLaTJUafP6bwiOIlHJAEMMu62scbSvRkdgc
+0UtU3phsuUC0NbpgmL160kIBqAem1h1z+xGmdj5v/AHW0BABHUbZXubVSVGtcGgS
+wAWiDm0xuEmIPI7pFRKVR4VBHvKZsGdbFhLunhdIWfFG7D4=
+=VFhI
+-----END PGP MESSAGE-----
+"""
+
+
 dev_signed_message = """-----BEGIN PGP MESSAGE-----
 
-owGbwMvMwCG2Ttv9l9wXfy7G08JJDLE/FmqVpBaXKOSmFhcnpqdydZSyMIhxMMiK
-KbIY/j3jPzNx/ZogrbmOME2sTCAdDFycAjARoUKG/zHTV94+3btJc3XDD3nR3df4
-p0iGPLWJkdRac/B7zMIH9/UYGb5uduZu5Xe5LNCwWcmRfUNiyV+97vbinoUxh2un
-MDAbsAEA
-=rP7l
+owGbwMvMwCW2Ttv9l9wXfy7G07xJDLG/JieVpBaXZOald5SyMIhxMciKKbIY/j3j
+PzNx/ZogrbmOMOWsTCC1DFycAjCRtueMDG83FVl0zdX0fFR5cZnRdxde+Y6oyZ6u
+1v0z3LfJfe84ZQVUUXN2jWn+vts7Cvf95LsvpOAine63ovP1dfniA7xPmyyZAA==
+=I205
 -----END PGP MESSAGE-----
 """
 
@@ -59,6 +100,12 @@ def gpg():
     print("teardown".center(18, "-"))
 
 
+async def async_method_runner(gpg):
+    assert gpg.Connector.__class__ == SocksConnector
+    async with gpg.Session as session:
+        session.__class__ == ClientSession
+
+
 def test_instance(gpg):
     gpg.gen_key()
     test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
@@ -69,8 +116,9 @@ def test_instance(gpg):
     assert gpg.tor_port == test_gpg.tor_port
     assert gpg.home == test_gpg.home
     assert gpg.executable == test_gpg.executable
-    assert gpg._connector == test_gpg._connector
-    assert gpg._session == test_gpg._session
+    assert gpg._Connector == test_gpg._Connector
+    assert gpg._Session == test_gpg._Session
+    run(async_method_runner(gpg))
     assert gpg._search_string == test_gpg._search_string
     assert gpg.keyserver == test_gpg.keyserver
     assert str(gpg.port) in gpg.keyserver
@@ -87,13 +135,16 @@ def test_instance(gpg):
     assert gpg.passphrase == "test_passphrase"
     assert gpg.home.endswith("gpghome")
     assert gpg.executable.endswith("gpg2")
-    assert gpg._connector == SocksConnector
-    assert gpg._session == ClientSession
+    assert gpg._Connector == SocksConnector
+    assert gpg._Session == ClientSession
     assert gpg.port == 80
     assert gpg.tor_port == 9050
     assert ".onion" in gpg.keyserver
     assert ".onion" in gpg.searchserver
     assert gpg.fingerprint in gpg.list_keys()
+    assert gpg.fingerprint in gpg.list_keys(secret=True)
+    assert test_gpg.fingerprint in gpg.list_keys()
+    assert test_gpg.fingerprint in gpg.list_keys(secret=True)
 
 
 def test_encode_inputs(gpg):
@@ -170,7 +221,6 @@ def test_cipher(gpg):
         gpg.verify(signed_message_1)
         gpg.verify(signed_message_2)
         gpg.verify(signed_message_3)
-    gpg.delete(test_email)
 
 
 def test_file_io(gpg):
@@ -244,7 +294,7 @@ def test_network_concurrency(gpg):
 
     async def looper(gpg, uid):
         tasks = []
-        for i in range(4):
+        for i in range(2):
             tasks.append(new_task(gpg.search(uid)))
         return tasks
 
@@ -303,6 +353,74 @@ def test_packet_parsing(gpg):
     assert key == key_from_gpg_key
 
 
+def test_auto_fetch_methods(gpg):
+    message = "testing"
+    keyserver_email = "support@keys.openpgp.org"
+    dev_email = "gonzo.development@protonmail.ch"
+    dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
+    gpg.delete(dev_fingerprint)
+    ###
+    try:
+        msg = run(gpg.auto_decrypt(dev_signed_message))
+    except Exception as exception:
+        if exception.value == dev_fingerprint:
+            """Rate limited on the server"""
+            pass
+        else:
+            raise LookupError(
+                f"{exception.value} was returned: {exception} failure"
+            )
+    dev_key = gpg.text_export(dev_fingerprint)
+    assert msg.strip() == message
+    ###
+    packets_0 = gpg.list_packets(dev_signed_encrypted_message)
+    packets_1 = gpg.list_packets(dev_encrypted_message)
+    packets_2 = gpg.list_packets(dev_signed_message)
+    assert type(packets_0) == list
+    assert type(packets_1) == list
+    assert type(packets_2) == list
+    assert len(packets_0) >= 4
+    assert len(packets_1) >= 4
+    assert len(packets_2) >= 11
+    ###
+    fingerprint_0 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_1 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_2 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_3 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_0_key = gpg.list_keys(fingerprint_0)
+    fingerprint_1_key = gpg.list_keys(fingerprint_1)
+    fingerprint_2_key = gpg.list_keys(fingerprint_2)
+    fingerprint_3_key = gpg.list_keys(fingerprint_3)
+    key_from_fingerprint = gpg.list_keys(dev_fingerprint)
+    assert fingerprint_0_key == key_from_fingerprint
+    assert fingerprint_1_key == key_from_fingerprint
+    assert fingerprint_2_key == key_from_fingerprint
+    assert fingerprint_3_key == key_from_fingerprint
+    ###
+    try:
+        run(gpg.auto_verify(dev_signed_encrypted_message))
+        failed = False
+    except Exception as exception:
+        failed = True
+        keyid = exception.value
+        assert gpg.key_email(keyid) == gpg.key_email(keyserver_email)
+    finally:
+        assert failed  # signed encrypted message shows only recipient
+        # from the outside (without the decryption key).
+    try:
+        run(gpg.auto_verify(dev_encrypted_message))
+        failed = False
+    except Exception as exception:
+        failed = True
+        keyid = exception.value
+        assert gpg.key_email(keyid) == gpg.key_email(keyserver_email)
+    finally:
+        assert failed  # signed message shows only recipient from the
+        # outside (without the decryption key).
+    gpg.delete(dev_fingerprint)
+    run(gpg.auto_verify(dev_signed_message))
+
+
 def test_revoke(gpg):
     raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" not in raw_list_keys
@@ -313,6 +431,7 @@ def test_revoke(gpg):
         failed = True
     finally:
         assert failed  # GnuPG bug #T4393
+        # this should not fail when the bug is resolved
     gpg.revoke(gpg.fingerprint)
     raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" in raw_list_keys
@@ -324,8 +443,9 @@ def test_revoke(gpg):
         failed = True
     finally:
         assert failed  # server removes the key after revocation? No.
-                       # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
-                       # GnuPG bug #T4393 will cause crash
+        # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
+        # GnuPG bug #T4393 will cause crash
+
 
 def test_delete(gpg):
     dev_email = "gonzo.development@protonmail.ch"
@@ -350,22 +470,11 @@ def test_delete(gpg):
             gpg.delete("gonzo.development@protonmail.ch")
         except:
             break
-
-
-def test_auto_fetch_methods(gpg):
-    dev_email = "gonzo.development@protonmail.ch"
-    dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
-    message = "test message"
-    msg = run(gpg.auto_decrypt(dev_signed_message))
-    gpg.verify(dev_signed_message)
-    assert msg.strip() == message
-    message_fingerprint = gpg.packet_fingerprint(dev_signed_message)
-    key_from_message = gpg.list_keys(message_fingerprint)
-    key_from_fingerprint = gpg.list_keys(dev_fingerprint)
-    assert key_from_message == key_from_fingerprint
-    gpg.delete(dev_fingerprint)
-    run(gpg.auto_verify(dev_signed_message))
-    gpg.delete(dev_fingerprint)
+    while True:
+        try:
+            gpg.delete("support@keys.openpgp.org")
+        except:
+            break
 
 
 def test_reset_daemon(gpg):
