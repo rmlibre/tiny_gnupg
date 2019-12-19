@@ -11,6 +11,16 @@ there's likely, and often bugs floating around, and the api is subject
 to change. Contributions are welcome.
 
 
+.. image:: https://badge.fury.io/py/tiny-gnupg.svg
+    :target: https://badge.fury.io/py/tiny-gnupg
+
+.. image:: tests/coverage.svg
+    :target: coverage
+
+.. image:: https://img.shields.io/github/license/rmlibre/tiny_gnupg
+    :alt: GitHub
+
+
 
 
 Install
@@ -345,6 +355,23 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
 ``Changelog``
 =============
+
+
+Changes for version 0.5.2
+=========================
+
+Minor Changes
+-------------
+
+-  Futher test cleanups. We're now at 100% line coverage and 99% branch
+   coverage.
+-  Code cleanups. ``raw_packets()`` now passes the uid information it's
+   gathered through the ``KeyError`` exception, in the ``value`` attribute
+   instead of copying ``subprocess``'s ``output`` attribute naming convention.
+-  License, coverage, package version badges added to ``README.rst``.
+
+
+
 
 Changes for version 0.5.1
 =========================

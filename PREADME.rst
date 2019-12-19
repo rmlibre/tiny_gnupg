@@ -11,6 +11,16 @@ there's likely, and often bugs floating around, and the api is subject
 to change. Contributions are welcome.
 
 
+.. image:: https://badge.fury.io/py/tiny-gnupg.svg
+    :target: https://badge.fury.io/py/tiny-gnupg
+
+.. image:: tests/coverage.svg
+    :target: coverage
+
+.. image:: https://img.shields.io/github/license/rmlibre/tiny_gnupg
+    :alt: GitHub
+
+
 
 
 Install

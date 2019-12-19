@@ -221,7 +221,8 @@ class GnuPG:
             "y",
             self.username,
             self.email,
-            "There's safety in numbers.",
+            # "There's safety in numbers.",
+            " ",
             "O",
         )
         output = self.read_output(command, inputs, stderr=STDOUT)
@@ -325,21 +326,18 @@ class GnuPG:
         inputs = self.encode_inputs(target)
         try:
             return self.read_output(command, inputs, stderr=STDOUT)
-        except CalledProcessError as exception:
-            error_text = "Can't decrypt all packets without secret key."
-            error = KeyError(error_text)
-            error.output = exception.output.decode()
-            if "No secret key" in error.output:
-                raise error
-            else:
-                raise exception
+        except CalledProcessError as error:
+            warning_text = "Can't decrypt all packets without secret key."
+            warning = KeyError(warning_text)
+            warning.value = error.output.decode()
+            raise warning if "No secret key" in warning.value else error
 
     def list_packets(self, target=""):
         """Returns OpenPGP metadata from ``target`` in list format"""
         try:
             packets = self.raw_packets(target).split("\n\t")
-        except KeyError as exception:
-            packets = exception.output.split("\n\t")
+        except KeyError as warning:
+            packets = warning.value.split("\n\t")
         listed_packets = []
         for packet in packets:
             listed_packets.append(packet.strip().split("\n"))
@@ -352,12 +350,12 @@ class GnuPG:
         """
         try:
             packets = self.raw_packets(target).replace(")", "")
-        except KeyError as exception:
-            packets = exception.output.replace(")", "")
+        except KeyError as warning:
+            packets = warning.value.replace(")", "")
         packets = packets.replace("key ID", "keyid")
-        if "issuer fpr" in packets:
+        if "(issuer fpr" in packets:
             size = slice(-40, None)
-            sentinel = "(issuer fpr "
+            sentinel = "(issuer fpr"
         else:
             sentinel = "keyid "
             size = slice(-16, None)
@@ -390,17 +388,17 @@ class GnuPG:
 
     def decrypt(self, message=""):
         """Decrypts ``message`` autodetecting correct key from keyring"""
-        message_uid = self.packet_fingerprint(message)
+        fingerprint = self.packet_fingerprint(message)
         try:
-            message_uid = next(iter(self.list_keys(message_uid)))
+            fingerprint = next(iter(self.list_keys(fingerprint)))
             command = self.command("-d", with_passphrase=True)
             inputs = self.encode_inputs(self.passphrase, message)
             return self.read_output(command, inputs)
-        except Exception as exception:
-            error_text = f"{message_uid} isn't in the local keyring."
-            exception = KeyError(error_text)
-            exception.value = message_uid
-            raise exception
+        except Exception as warning:
+            warning_text = f"{fingerprint} isn't in the local keyring."
+            warning = KeyError(warning_text)
+            warning.value = fingerprint
+            raise warning
 
     async def auto_decrypt(self, message=""):
         """
@@ -445,17 +443,17 @@ class GnuPG:
         Verifies signed ``message`` if the corresponding public key is
         in the local keyring.
         """
-        message_uid = self.packet_fingerprint(message)
+        fingerprint = self.packet_fingerprint(message)
         try:
-            message_uid = next(iter(self.list_keys(message_uid)))
+            fingerprint = next(iter(self.list_keys(fingerprint)))
             command = self.command("--verify")
             inputs = self.encode_inputs(message)
             return self.read_output(command, inputs)
-        except Exception as exception:
-            error_text = f"{message_uid} isn't in the local keyring."
-            exception = KeyError(error_text)
-            exception.value = message_uid
-            raise exception
+        except Exception as warning:
+            warning_text = f"{fingerprint} isn't in the local keyring."
+            warning = KeyError(warning_text)
+            warning.value = fingerprint
+            raise warning
 
     async def auto_verify(self, message=""):
         """

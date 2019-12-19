@@ -8,9 +8,8 @@ include tiny_gnupg/__init__.py
 include tiny_gnupg/tiny_gnupg.py
 include tiny_gnupg/gpghome/gpg2
 include tiny_gnupg/gpghome/gpg2.conf
-include tests/coverage_html.js
+include tests/coverage.svg
 include tests/test_tiny_gnupg.py
-include tests/_home_mon_Documents_coding_git_tiny_gnupg_tiny_gnupg_tiny_gnupg_py.html
 exclude tiny_gnupg/gpghome/tofu.db
 exclude tiny_gnupg/gpghome/sshcontrol
 exclude tiny_gnupg/gpghome/random_seed
