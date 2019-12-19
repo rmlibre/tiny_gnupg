@@ -150,6 +150,7 @@ def gpg():
     relative_gpg_path = str(Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome")
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
+    gpg.reset_daemon()
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -170,14 +171,11 @@ def test_instance(gpg):
             gpg.delete(gpg.email)
         except:
             break
-    try:
-        gpg.set_home_permissions("/ridiculous_root_directory_not_real")
-    except:
-        """
-        Successfully failed to change permissions on an invalid dir.
-        We refrain from testing on a root folder that may actually exist
-        for safety of the tester reasons.
-        """
+
+    gpg.set_home_permissions("/ridiculous_root_directory_not_real")
+    # Successfully failed to change permissions on an invalid dir.
+    # We refrain from testing on a root folder that may actually exist
+    # for safety of the tester reasons.
     gpg.gen_key()
     test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
     assert gpg.username == test_gpg.username
@@ -261,7 +259,7 @@ def test_cipher(gpg):
             try:
                 gpg.trust(fingerprint, trust_level)
             except ValueError as invalid_trust_level:
-                if not 0 < int(trust_level) < 6:
+                if 1 > int(trust_level) or 5 < int(trust_level):
                     """Successfully blocked invlaid trust level"""
                     continue
         encrypted_message_0 = gpg.encrypt(
@@ -454,21 +452,11 @@ def test_auto_fetch_methods(gpg):
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     gpg.delete(dev_fingerprint)
     ###
-    try:
-        msg = run(gpg.auto_decrypt(dev_signed_message))
-    except Exception as exception:
-        if exception.value == dev_fingerprint:
-            """
-            Everything is OK.
-            Our queries are just being blocked and rate limited on the
-            server. If this exception doesn't proc, then everything is
-            still OK, and we haven't been rate limited.
-            """
-            pass
-        else:
-            raise LookupError(
-                f"{exception.value} was returned: {exception} failure"
-            )
+    ### The server may rate limit queries on the key & cause a crash.
+    ### This happens as expected during heavy testing, or when enough
+    ### people are running the tests. Wait a bit and try again. This
+    ### fetch should pass.
+    msg = run(gpg.auto_decrypt(dev_signed_message))
     dev_key = gpg.text_export(dev_fingerprint)
     assert msg.strip() == message
     ###
