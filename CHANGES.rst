@@ -93,6 +93,7 @@ Minor Changes
 Major Changes
 -------------
 
+-  100% test coverage!
 -  Fixed bug in ``raw_packets()`` which did not return the packet
    information when gnupg throws a "no private key" error. Now the
    packet information is passed in the ``output`` attribute of the
