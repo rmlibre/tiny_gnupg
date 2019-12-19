@@ -347,6 +347,17 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 =============
 
 
+Changes for version 0.5.0
+=========================
+
+Minor Changes
+-------------
+
+-  Removed coverage.py html results. They are too big, and reveal device
+   specific information.
+
+
+
 
 Changes for version 0.4.9
 =========================
