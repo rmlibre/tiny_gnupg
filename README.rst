@@ -346,6 +346,25 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 ``Changelog``
 =============
 
+Changes for version 0.5.1
+=========================
+
+Minor Changes
+-------------
+
+-  Fixed inaccuracies and mess-ups in the tests. Added tests for parsing
+   some legacy keys' packets with ``raw_packets()``.
+
+
+Major Changes
+-------------
+
+-  Bug in the packet parser has been patched which did not correctly
+   handle or recognize some legacy key packet types. This patch widens
+   the pool of compatible OpenPGP versions.
+
+
+
 
 Changes for version 0.5.0
 =========================
