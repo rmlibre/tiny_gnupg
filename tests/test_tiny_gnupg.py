@@ -35,9 +35,63 @@ new_task = asyncio.get_event_loop().create_task
 
 from tiny_gnupg import GnuPG, run
 
+legacy_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: OpenPGP.js v4.3.0
+Comment: https://openpgpjs.org
 
-def pop(dictionary):
-    return next(iter(dictionary))
+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
+=IoDL
+-----END PGP PUBLIC KEY BLOCK-----
+"""
 
 
 dev_signed_encrypted_message = """-----BEGIN PGP MESSAGE-----
@@ -98,6 +152,10 @@ def gpg():
     gpg.set_homedir(relative_gpg_path)
     yield gpg
     print("teardown".center(18, "-"))
+
+
+def pop(dictionary):
+    return next(iter(dictionary))
 
 
 async def async_method_runner(gpg):
@@ -384,13 +442,14 @@ def test_packet_parsing(gpg):
     ###
     assert key == key_from_signature
     assert key == key_from_signed_encrypted_message
-    assert key != key_from_encrypted_message  # anonymous message sender
+    assert key == key_from_encrypted_message  # better parsing finds fingerprint?
     assert key == key_from_gpg_key
 
 
 def test_auto_fetch_methods(gpg):
     message = "testing"
     keyserver_email = "support@keys.openpgp.org"
+    test_fingerprint = "864C145731DD963466CC7571A2604867523C7ED8"
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     gpg.delete(dev_fingerprint)
@@ -399,7 +458,12 @@ def test_auto_fetch_methods(gpg):
         msg = run(gpg.auto_decrypt(dev_signed_message))
     except Exception as exception:
         if exception.value == dev_fingerprint:
-            """Rate limited on the server"""
+            """
+            Everything is OK.
+            Our queries are just being blocked and rate limited on the
+            server. If this exception doesn't proc, then everything is
+            still OK, and we haven't been rate limited.
+            """
             pass
         else:
             raise LookupError(
@@ -411,30 +475,41 @@ def test_auto_fetch_methods(gpg):
     packets_0 = gpg.list_packets(dev_signed_encrypted_message)
     packets_1 = gpg.list_packets(dev_encrypted_message)
     packets_2 = gpg.list_packets(dev_signed_message)
+    packets_3 = gpg.list_packets(legacy_key)
+    packets_4 = gpg.list_packets(dev_key)
     assert type(packets_0) == list
     assert type(packets_1) == list
     assert type(packets_2) == list
-    assert len(packets_0) >= 4
-    assert len(packets_1) >= 4
-    assert len(packets_2) >= 11
+    assert type(packets_3) == list
+    assert type(packets_4) == list
+    assert len(packets_0) == 4
+    assert len(packets_1) == 4
+    assert len(packets_2) == 11
+    assert len(packets_3) == 28
+    assert len(packets_4) == 31
     try:
-        gpg.list_packets(20*"Non-OpenPGP data")
+        gpg.list_packets(20 * "Non-OpenPGP data")
     except:
         """Successfully failed when invalid data sent for parsing"""
     ###
-    fingerprint_0 = gpg.packet_fingerprint(dev_signed_message)
-    fingerprint_1 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_0 = gpg.packet_fingerprint(dev_signed_encrypted_message)
+    fingerprint_1 = gpg.packet_fingerprint(dev_encrypted_message)
     fingerprint_2 = gpg.packet_fingerprint(dev_signed_message)
-    fingerprint_3 = gpg.packet_fingerprint(dev_signed_message)
+    fingerprint_3 = gpg.packet_fingerprint(legacy_key)
+    fingerprint_4 = gpg.packet_fingerprint(dev_key)
     fingerprint_0_key = gpg.list_keys(fingerprint_0)
     fingerprint_1_key = gpg.list_keys(fingerprint_1)
     fingerprint_2_key = gpg.list_keys(fingerprint_2)
     fingerprint_3_key = gpg.list_keys(fingerprint_3)
+    fingerprint_4_key = gpg.list_keys(fingerprint_4)
     key_from_fingerprint = gpg.list_keys(dev_fingerprint)
-    assert fingerprint_0_key == key_from_fingerprint
-    assert fingerprint_1_key == key_from_fingerprint
+    key_from_test_fingerprint = gpg.list_keys(test_fingerprint)
+    assert fingerprint_0_key == key_from_test_fingerprint
+    assert fingerprint_1_key == key_from_test_fingerprint
     assert fingerprint_2_key == key_from_fingerprint
-    assert fingerprint_3_key == key_from_fingerprint
+    assert fingerprint_3_key != key_from_fingerprint
+    assert fingerprint_3_key != key_from_test_fingerprint
+    assert fingerprint_4_key == key_from_fingerprint
     ###
     try:
         failed = False
