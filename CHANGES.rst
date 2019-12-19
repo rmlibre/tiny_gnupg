@@ -56,6 +56,23 @@
 ``Changelog``
 =============
 
+
+Changes for version 0.5.2
+=========================
+
+Minor Changes
+-------------
+
+-  Futher test cleanups. We're now at 100% line coverage and 99% branch
+   coverage.
+-  Code cleanups. ``raw_packets()`` now passes the uid information it's
+   gathered through the ``KeyError`` exception, in the ``value`` attribute
+   instead of copying ``subprocess``'s ``output`` attribute naming convention.
+-  License, coverage, package version badges added to ``README.rst``.
+
+
+
+
 Changes for version 0.5.1
 =========================
 
