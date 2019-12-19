@@ -351,14 +351,17 @@ class GnuPG:
         gpg message, key or signature.
         """
         try:
-            size = slice(-41, -1)
-            sentinel = "(issuer fpr v4"
-            packets = self.raw_packets(target).split("\n\t")
+            packets = self.raw_packets(target).replace(")", "")
         except KeyError as exception:
+            packets = exception.output.replace(")", "")
+        packets = packets.replace("key ID", "keyid")
+        if "issuer fpr" in packets:
+            size = slice(-40, None)
+            sentinel = "(issuer fpr "
+        else:
             sentinel = "keyid "
             size = slice(-16, None)
-            packets = exception.output.split("\n\t")
-        for packet in packets:
+        for packet in packets.split("\n\t"):
             if sentinel in packet:
                 return packet[size]
 
