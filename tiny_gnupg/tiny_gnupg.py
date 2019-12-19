@@ -269,7 +269,7 @@ class GnuPG:
         """Deletes secret & public key matching ``uid`` from keyring"""
         uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
         try:
-            if uid not in self.list_keys(uid, secret=True):
+            if uid not in self.list_keys(secret=True):
                 raise LookupError("No secret key in keyring")
             command = self.command(
                 "--command-fd",
@@ -279,7 +279,7 @@ class GnuPG:
             )
             inputs = self.encode_inputs("y", "y")
             self.read_output(command, inputs)
-        except:
+        except LookupError:
             print("now trying to delete public key...")
         command = self.command("--command-fd", "0", "--delete-key", uid)
         inputs = self.encode_inputs("y")
@@ -335,7 +335,7 @@ class GnuPG:
                 raise exception
 
     def list_packets(self, target=""):
-        """Returns OpenPGP metadata from ``target`` in format list"""
+        """Returns OpenPGP metadata from ``target`` in list format"""
         try:
             packets = self.raw_packets(target).split("\n\t")
         except KeyError as exception:
@@ -406,12 +406,9 @@ class GnuPG:
         """
         try:
             return self.decrypt(message)
-        except Exception as exception:
-            try:
-                await self.network_import(exception.value)
-                return self.decrypt(message)
-            except KeyError:
-                raise exception
+        except KeyError as fingerprint:
+            await self.network_import(fingerprint.value)
+            return self.decrypt(message)
 
     def sign(self, target="", local_user="", *, key=False):
         """
@@ -464,12 +461,9 @@ class GnuPG:
         """
         try:
             return self.verify(message)
-        except Exception as exception:
-            try:
-                await self.network_import(exception.value)
-                return self.verify(message)
-            except KeyError:
-                raise exception
+        except KeyError as fingerprint:
+            await self.network_import(fingerprint.value)
+            return self.verify(message)
 
     def raw_list_keys(self, uid="", secret=False):
         """Returns the terminal output of the --list-keys ``uid`` option"""
