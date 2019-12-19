@@ -57,6 +57,17 @@
 =============
 
 
+Changes for version 0.5.3
+=========================
+
+Minor Changes
+-------------
+
+-  Fixing PyPi ``README.rst`` rendering.
+
+
+
+
 Changes for version 0.5.2
 =========================
 

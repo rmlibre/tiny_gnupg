@@ -14,8 +14,8 @@ to change. Contributions are welcome.
 .. image:: https://badge.fury.io/py/tiny-gnupg.svg
     :target: https://badge.fury.io/py/tiny-gnupg
 
-.. image:: tests/coverage.svg
-    :target: coverage
+.. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
+    :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
 
 .. image:: https://img.shields.io/github/license/rmlibre/tiny_gnupg
     :alt: GitHub
