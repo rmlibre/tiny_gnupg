@@ -1,13 +1,6 @@
-``Changelog``
-=============
 
-
-
-Changes for version 0.4.8
-=========================
-
-Known Issues
-------------
+``Known Issues``
+=================
 
 -  Because of Debian `bug #930665`_, and related GnuPG `bug #T4393`_,
    importing keys from the default keyserver `keys.openpgp.org`_ doesn’t
@@ -57,6 +50,76 @@ Known Issues
 .. _bug #T3065: https://dev.gnupg.org/T3065#111023
 .. _bug #1788190: https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1788190
 
+
+
+
+``Changelog``
+=============
+
+
+
+Changes for version 0.4.9
+=========================
+
+Minor Changes
+-------------
+
+-  Various code cleanups.
+-  Added to test cases for auto fetch methods and packet parsing.
+-  Documentation improvements: ``README.rst`` edits. ``CHANGES.rst``
+   Known Issues moved to its own section at the top. Docstrings now
+   indicate code args and kwargs in restructured text, double tick
+   format.
+-  Added ``use-agent`` back into the gpg2.conf file to help gnupg to not
+   open the system pinentry window. This may have implications for
+   anonymity since multiple instances runnning on a user machine will
+   be able to use the same agent to decrypt message's, even if the
+   decrypting instance wasn't the **intended** recipient. This may be
+   removed again. A factor in this decision is that, it's not clear
+   whether removing it or adding ``no-use-agent`` would even `have an impact`_
+   on the gpg-agent's decisions.
+-  ``_session``, ``_connector``, ``session`` and ``connector`` contructors
+   were renamed to title case, since they are class references or are
+   class factories. They are now named ``_Session``, ``_Connector``,
+   ``Session`` and ``Connector``.
+-  Added some functionality to ``setup.py`` so that the ``long_description``
+   on PyPI which displays both ``README.rst`` and ``CHANGES.rst``, will
+   also be displayed on github through a combined ``README.rst`` file.
+   The old ``README.rst`` is now renamed ``PREADME.rst``.
+
+.. _have an impact: https://stackoverflow.com/questions/47273922/purpose-of-gpg-agent-in-gpg2
+
+
+Major Changes
+-------------
+
+-  Fixed bug in ``raw_packets()`` which did not return the packet
+   information when gnupg throws a "no private key" error. Now the
+   packet information is passed in the ``output`` attribute of the
+   ``KeyError`` exception up to ``packet_fingerprint()`` and
+   ``list_packets()``. If another cause is determined for the error, then
+   ``CalledProcessError`` is raised instead.
+-  ``packet_fingerprint()`` now returns a 16 byte key ID when parsing
+   packets of encrypted messages which would throw a gnupg "no private
+   key" error. The longer 40 byte fingerprint is not available in the
+   plaintext packets.
+-  New ``list_packets()`` method added to handle the error scraping of
+   ``raw_packets()`` and return the ``target``'s metadata information in
+   a more readable format.
+-  Fixed bug in ``format_list_keys()`` which did not properly parse
+   ``raw_list_keys(secret=False)`` when ``secret`` was toggled to ``True``
+   to display secret keys. The bug would cause the program to falsely
+   show that only one secret key exists in the package keyring,
+   irrespective of how many secret keys were actually there.
+-  Added a second round of fingerprint finding in ``decrypt()`` and
+   ``verify()`` to try at returning more accurate results to callers and
+   in the raised exception's ``value`` attribute used by ``auto_decrypt()``
+   and ``auto_verify()``.
+
+
+
+Changes for version 0.4.8
+=========================
 
 Minor Changes
 -------------
@@ -451,7 +514,7 @@ Changes for version 0.3.1
 Minor Changes
 -------------
 
--  Fixed a bug in ``trust()`` which caused an extra “y:raw-latex:`\n`”
+-  Fixed a bug in ``trust()`` which caused an extra ``b“y\n”``
    to be sent to the interactive prompt when setting keys as anything
    but ultimately trusted. This was because there’s an extra terminal
    dialog asking for a “y” confirmation that is not there when a key is
@@ -470,7 +533,7 @@ Minor Changes
 Major Changes
 -------------
 
--  Fixed a bug in ``encrypt()`` which caused a “y:raw-latex:`\n`” to be
+-  Fixed a bug in ``encrypt()`` which caused a ``“y\n”`` to be
    prepended to plaintext that was sent to ultimately trusted keys. This
    was because there’s an extra terminal dialog asking for a “y”
    confirmation that is not there when a key is ultimately trusted.
