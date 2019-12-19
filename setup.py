@@ -14,16 +14,19 @@ description = """
 tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 """.replace("\n", "")
 
-with open("README.rst", "r") as readme:
-    long_description = readme.read()
+with open("PREADME.rst", "r") as preadme:
+    long_description = preadme.read()
 
 with open("CHANGES.rst", "r") as changelog:
     long_description += f"\n\n\n\n{changelog.read()}"
 
+with open("README.rst", "w+") as readme:
+    readme.write(long_description)
+
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.4.8",
+    version="0.4.9",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
@@ -89,3 +92,4 @@ setup(
     tests_require=["pytest"],
     packages=find_packages(),
 ) if __name__ == "__main__" else 0
+
