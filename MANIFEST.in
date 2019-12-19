@@ -17,6 +17,7 @@ exclude tiny_gnupg/gpghome/random_seed
 exclude tiny_gnupg/gpghome/trustdb.gpg
 exclude tiny_gnupg/gpghome/pubring.kbx
 exclude tiny_gnupg/gpghome/pubring.kbx~
+recursive-exclude tests/htmlcov *
 recursive-exclude tiny_gnupg/gpghome/crls.d *
 recursive-exclude tiny_gnupg/gpghome/openpgp-revocs.d *
 recursive-exclude tiny_gnupg/gpghome/private-keys-v1.d *

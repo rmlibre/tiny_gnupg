@@ -11,6 +11,7 @@ sshcontrol
 tofu.db
 crls.d
 .coverage
+htmlcov
 build
 dist
 venv
