@@ -25,6 +25,7 @@ tiny_gnupg instead of the --user flag.
 import sys
 import pytest
 import asyncio
+import subprocess
 from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import SocksConnector
@@ -171,13 +172,13 @@ def test_instance(gpg):
             gpg.delete(gpg.email)
         except:
             break
-
     gpg.set_home_permissions("/ridiculous_root_directory_not_real")
     # Successfully failed to change permissions on an invalid dir.
     # We refrain from testing on a root folder that may actually exist
     # for safety of the tester reasons.
     gpg.gen_key()
     test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
+    test_gpg.gen_key()
     assert gpg.username == test_gpg.username
     assert gpg.email == test_gpg.email
     assert gpg.passphrase == test_gpg.passphrase
@@ -214,6 +215,7 @@ def test_instance(gpg):
     assert gpg.fingerprint in gpg.list_keys(secret=True)
     assert test_gpg.fingerprint in gpg.list_keys()
     assert test_gpg.fingerprint in gpg.list_keys(secret=True)
+    ###
 
 
 def test_encode_inputs(gpg):
@@ -261,23 +263,12 @@ def test_cipher(gpg):
             except ValueError as invalid_trust_level:
                 if 1 > int(trust_level) or 5 < int(trust_level):
                     """Successfully blocked invlaid trust level"""
-                    continue
         encrypted_message_0 = gpg.encrypt(
             message=message,
             uid=gpg.fingerprint,
             local_user=gpg.fingerprint,
         )
         encrypted_message_1 = gpg.encrypt(
-            message=message,
-            uid=gpg.fingerprint,
-        )
-        encrypted_message_2 = gpg.encrypt(
-            message=message,
-            uid=gpg.fingerprint,
-            local_user=gpg.fingerprint,
-            sign=False,
-        )
-        encrypted_message_3 = gpg.encrypt(
             message=message,
             uid=gpg.fingerprint,
             sign=False,
@@ -289,25 +280,60 @@ def test_cipher(gpg):
         nonstandard_encrypted_message_1 = gpg.encrypt(
             message=message,
             uid=test_email,
-            sign=False
+            sign=False,
+            local_user=gpg.fingerprint,
         )
         assert gpg.decrypt(encrypted_message_0) == message
         assert gpg.decrypt(encrypted_message_1) == message
-        assert gpg.decrypt(encrypted_message_2) == message
-        assert gpg.decrypt(encrypted_message_3) == message
         signed_message_0 = gpg.sign(message)
         signed_message_1 = gpg.sign(signed_message_0)
-        signed_message_2 = gpg.sign(signed_message_1)
-        signed_message_3 = gpg.sign(signed_message_2)
-        signed_message_3 = gpg.sign(signed_message_3)
         try:
             gpg.sign(message, key="Non boolean value")
         except:
             """Successfully blocked non-boolean value"""
         gpg.verify(signed_message_0)
         gpg.verify(signed_message_1)
-        gpg.verify(signed_message_2)
-        gpg.verify(signed_message_3)
+    ###
+    try:
+        failed = False
+        msg = encrypted_message_0
+        corrupt_message = msg[:201] + msg[202:]
+        gpg.decrypt(corrupt_message)
+    except subprocess.CalledProcessError:
+        failed = True
+        # The metadata on the message is corrupted by dropping a byte,
+        # expectedly leading to an error.
+    finally:
+        assert failed
+    ###
+    username = "test_sender"
+    email = "test_sender@testing.testing"
+    passphrase = "test_sender_passphrase"
+    sender = GnuPG(username, email, passphrase)
+    sender.gen_key()
+    sender_key = sender.list_keys(sender.fingerprint)
+    sender_pkey = sender.text_export(sender.fingerprint)
+    sender_skey = sender.text_export(sender.fingerprint, secret=True)
+    msg = sender.encrypt("testing", gpg.fingerprint)
+    sender.delete(sender.fingerprint)
+    sender.reset_daemon()
+    try:
+        failed = False
+        gpg.decrypt(msg)
+    except LookupError as warning:
+        try: gpg.list_keys(warning.value)
+        except: failed = True
+        gpg.text_import(sender_pkey)
+        gpg.list_keys(warning.value)
+    finally:
+        while True:
+            try:
+                sender.delete(sender.fingerprint)
+            except:
+                break
+        assert failed  # fingerprint is subkey of newly added key which
+        # was derived from the returned ``decrypt()`` exception ``value``
+        # attribute
 
 
 def test_file_io(gpg):
@@ -376,6 +402,7 @@ def test_networking(gpg):
         run(gpg.network_import("nonsense uid data (HOPEFULLY)"))
     except FileNotFoundError:
         """Successfully failed to retrieve data for bogus query"""
+
 
 
 def test_network_concurrency(gpg):
@@ -451,13 +478,16 @@ def test_auto_fetch_methods(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     gpg.delete(dev_fingerprint)
+    run(gpg.auto_encrypt(message, dev_fingerprint))
     ###
     ### The server may rate limit queries on the key & cause a crash.
     ### This happens as expected during heavy testing, or when enough
     ### people are running the tests. Wait a bit and try again. This
     ### fetch should pass.
+    gpg.delete(dev_fingerprint)
     msg = run(gpg.auto_decrypt(dev_signed_message))
     dev_key = gpg.text_export(dev_fingerprint)
+    gpg.text_import(legacy_key)
     assert msg.strip() == message
     ###
     packets_0 = gpg.list_packets(dev_signed_encrypted_message)
@@ -500,15 +530,22 @@ def test_auto_fetch_methods(gpg):
     assert fingerprint_4_key == key_from_fingerprint
     ###
     try:
-        failed = False
+        failed_correctly = False
+        msg = dev_signed_encrypted_message
         run(gpg.auto_verify(dev_signed_encrypted_message))
-    except Exception as exception:
-        failed = True
-        keyid = exception.value
-        assert gpg.key_email(keyid) == gpg.key_email(keyserver_email)
+    except PermissionError as error:
+        failed_correctly = True
+        notice = "``message`` unverifiable"
+        assert notice in error.args[0]
     finally:
-        assert failed  # signed encrypted message shows only recipient
-        # from the outside (without the decryption key).
+        assert failed_correctly  # signed encrypted message shows only
+        # recipient from the outside (without the decryption key). Tester
+        # isn't the recipient, so cannot verify. Nor can verify be used
+        # on an encrypted message in general, unless the message is
+        # specifcally a signature, not encrypted plaintext. This is just
+        # not how verify works. Signatures are on the inside on encrypted
+        # messages. So ``decrypt()`` should be used, it throws if a
+        # signature is invalid on a message.
     try:
         failed = False
         run(gpg.auto_verify(dev_encrypted_message))
@@ -574,6 +611,11 @@ def test_delete(gpg):
     while True:
         try:
             gpg.delete("support@keys.openpgp.org")
+        except:
+            break
+    while True:
+        try:
+            gpg.delete("4826A9293FB8DF4765192455CDD760B5E60DB4F8")
         except:
             break
 
