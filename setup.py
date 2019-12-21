@@ -83,7 +83,6 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        "pathlib",
         "aiohttp",
         "aiofiles",
         "aiohttp_socks",
