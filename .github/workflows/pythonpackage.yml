@@ -1,15 +1,6 @@
 name: Python package
 
-on:
-  push:
-    branches:
-      - master
-      - develop
-      - rmlibre-actions-0
-    paths:
-      - tests/*
-      - tiny_gnupg/*
-      - tiny_gnupg.egg-info/*
+on: [push]
 jobs:
   build:
 
