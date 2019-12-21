@@ -271,7 +271,7 @@ class GnuPG:
         uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
         try:
             if uid not in self.list_keys(secret=True):
-                raise LookupError("No secret key in keyring")
+                raise LookupError("No secret key in package keyring.")
             command = self.command(
                 "--command-fd",
                 "0",
@@ -291,6 +291,7 @@ class GnuPG:
         Generates & imports revocation cert for key matching ``uid``,
         returns the revoked key.
         """
+        uid = self.key_fingerprint(uid)
         command = self.command(
             "--command-fd",
             "0",
@@ -306,6 +307,7 @@ class GnuPG:
 
     def trust(self, uid="", level=5):
         """Sets trust ``level`` to key matching ``uid`` in the keyring"""
+        uid = self.key_fingerprint(uid)
         level = str(int(level))
         if not 1 <= int(level) <= 5:
             raise ValueError("Trust levels must be between 1 and 5.")
@@ -327,8 +329,8 @@ class GnuPG:
         try:
             return self.read_output(command, inputs, stderr=STDOUT)
         except CalledProcessError as error:
-            warning_text = "Can't decrypt all packets without secret key."
-            warning = KeyError(warning_text)
+            notice = "Can't decrypt all packets without secret key."
+            warning = KeyError(notice)
             warning.value = error.output.decode()
             raise warning if "No secret key" in warning.value else error
 
@@ -386,18 +388,40 @@ class GnuPG:
             inputs = self.encode_inputs(self.passphrase, message)
         return self.read_output(command, inputs[:-1])
 
-    def decrypt(self, message=""):
+    async def auto_encrypt(
+        self, message="", uid="", sign=True, local_user=""
+    ):
+        """
+        Queries keyserver before encryption if recipient's ``uid`` key
+        isn't in the local keyring.
+        """
+        try:
+            return self.encrypt(message, uid, sign, local_user)
+        except LookupError as uid:
+            await self.network_import(uid.value)
+            return self.encrypt(message, uid.value, sign, local_user)
+
+    def decrypt(self, message="", *, debug=None):
         """Decrypts ``message`` autodetecting correct key from keyring"""
         fingerprint = self.packet_fingerprint(message)
+        fingerprint = self.key_fingerprint(fingerprint)
         try:
-            fingerprint = next(iter(self.list_keys(fingerprint)))
             command = self.command("-d", with_passphrase=True)
             inputs = self.encode_inputs(self.passphrase, message)
             return self.read_output(command, inputs)
-        except Exception as warning:
-            warning_text = f"{fingerprint} isn't in the local keyring."
-            warning = KeyError(warning_text)
-            warning.value = fingerprint
+        except CalledProcessError as error:
+            try:
+                output = self.read_output(command, inputs, stderr=STDOUT)
+            except CalledProcessError as error:
+                output = error.output
+            error_lines = output.decode().strip().split("\n")
+            sentinel = "gpg:                using"
+            uid = [
+                line[-40:] for line in error_lines if sentinel in line
+            ]
+            notice = f"UID '{uid}' not in package keyring"
+            warning = LookupError(notice)
+            warning.value = uid[-1] if uid else fingerprint
             raise warning
 
     async def auto_decrypt(self, message=""):
@@ -407,7 +431,7 @@ class GnuPG:
         """
         try:
             return self.decrypt(message)
-        except KeyError as fingerprint:
+        except LookupError as fingerprint:
             await self.network_import(fingerprint.value)
             return self.decrypt(message)
 
@@ -435,7 +459,7 @@ class GnuPG:
             )
             inputs = self.encode_inputs(self.passphrase, target)[:-1]
         else:
-            raise ValueError(f"key != boolean, {type(key)} given.")
+            raise TypeError(f"``key`` != boolean, {type(key)} given.")
         return self.read_output(command, inputs)
 
     def verify(self, message=""):
@@ -444,16 +468,16 @@ class GnuPG:
         in the local keyring.
         """
         fingerprint = self.packet_fingerprint(message)
+        fingerprint = self.key_fingerprint(fingerprint)
         try:
-            fingerprint = next(iter(self.list_keys(fingerprint)))
             command = self.command("--verify")
             inputs = self.encode_inputs(message)
             return self.read_output(command, inputs)
-        except Exception as warning:
-            warning_text = f"{fingerprint} isn't in the local keyring."
-            warning = KeyError(warning_text)
-            warning.value = fingerprint
-            raise warning
+        except CalledProcessError:
+            notice = f"Missing {fingerprint} or ``message`` unverifiable."
+            error = PermissionError(notice)
+            error.value = fingerprint
+            raise error
 
     async def auto_verify(self, message=""):
         """
@@ -462,7 +486,7 @@ class GnuPG:
         """
         try:
             return self.verify(message)
-        except KeyError as fingerprint:
+        except LookupError as fingerprint:
             await self.network_import(fingerprint.value)
             return self.verify(message)
 
@@ -473,7 +497,13 @@ class GnuPG:
             command = self.command(f"--list{secret}-keys", uid)
         else:
             command = self.command(f"--list{secret}-keys")
-        return self.read_output(command)
+        try:
+            return self.read_output(command)
+        except CalledProcessError:
+            notice = f"UID '{uid}' not in package keyring"
+            warning = LookupError(notice)
+            warning.value = uid
+            raise warning
 
     def format_list_keys(self, raw_list_keys_terminal_output, secret=""):
         """
@@ -514,8 +544,8 @@ class GnuPG:
 
     def key_fingerprint(self, uid=""):
         """Returns the fingerprint on the key matching ``uid``"""
-        key = self.list_keys(uid)
-        return next(iter(key))
+        return next(iter(self.list_keys(uid)))
+
 
     def key_trust(self, uid=""):
         """Returns the current trust level on the key matching ``uid``"""
@@ -556,7 +586,7 @@ class GnuPG:
         """Imports the key matching ``uid`` from the keyserver."""
         key_url = await self.search(uid)
         if not key_url:
-            raise FileNotFoundError("No key found on server.")
+            raise FileNotFoundError(f"UID '{uid}' not found on server.")
         print(f"key location: {key_url}")
         key = await self.get(key_url)
         print(f"downloaded:\n{key}")
@@ -578,7 +608,7 @@ class GnuPG:
         command = self.command("--import")
         inputs = self.encode_inputs(key)
         try:
-            return self.read_output(command_bugfix, inputs)
+            return self.read_output(command_bugfix, inputs, stderr=STDOUT)
         except:
             return self.read_output(command, inputs)
 
@@ -641,6 +671,7 @@ class GnuPG:
         returns the secret key as a string that matches ``uid`` if
         ``secret`` == True.
         """
+        uid = self.key_fingerprint(uid)
         if secret == True:  # avoid truthiness
             command = self.command(
                 "-a", "--export-secret-keys", uid, with_passphrase=True
@@ -651,4 +682,4 @@ class GnuPG:
             command = self.command("-a", "--export", uid)
             return self.read_output(command)
         else:
-            raise ValueError(f"secret != boolean, {type(secret)} given")
+            raise TypeError(f"secret != boolean, {type(secret)} given")
