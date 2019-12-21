@@ -541,9 +541,9 @@ class GnuPG:
 
     def reset_daemon(self):
         """Resets the gpg-agent daemon"""
-        command = ["gpgconf", "--kill", "gpg-agent"]
+        command = ["gpgconf", "--homedir", self.home, "--kill", "gpg-agent"]
         kill_output = self.read_output(command)
-        command = ["gpg-agent", "--daemon"]
+        command = ["gpg-agent", "--homedir", self.home, "--daemon"]
         reset_output = self.read_output(command)
         return kill_output, reset_output
 
