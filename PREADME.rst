@@ -11,14 +11,19 @@ there's likely, and often bugs floating around, and the api is subject
 to change. Contributions are welcome.
 
 
+
+
 .. image:: https://badge.fury.io/py/tiny-gnupg.svg
     :target: https://badge.fury.io/py/tiny-gnupg
 
-.. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
-    :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
-
 .. image:: https://img.shields.io/github/license/rmlibre/tiny_gnupg
     :alt: GitHub
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://img.shields.io/badge/code%20style-black-000000.svg
+
+.. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
+    :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
 
 
 
@@ -62,10 +67,13 @@ Usage Example
     inputs = gpg.encode_inputs("Message to myself")
     output = gpg.read_output(command, inputs)
 
-    # If a command would invoke the need for a passphrase, the with_passphrase
-    # kwarg (gpg.command(*options, with_passphase=True)) can be set to True.
-    # The passphrase then needs to be the first arg passed to encode_inputs
-    # (gpg.encode_inputs(passphrase, *other_inputs))
+    # If a command would invoke the need for a passphrase, the
+    # with_passphrase kwarg should be set to True ->
+    gpg.command(*options, with_passphase=True)
+
+    # The passphrase then needs to be the first arg passed to
+    # encode_inputs ->
+    gpg.encode_inputs(passphrase, *other_inputs)
 
 
     # The list of keys in the package's environment can be accessed
