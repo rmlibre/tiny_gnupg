@@ -18,7 +18,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        sudo apt-get install tor
+        sudo apt-get install tor gnupg2
         python3 -m pip install --upgrade pip pytest flake8
         python3 -m pip install -r tiny_gnupg.egg-info/requires.txt
     - name: Lint with flake8
