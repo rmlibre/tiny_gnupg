@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get install tor torsocks gnupg2
-        yes | sudo cp -rf /usr/bin/gpg2 /home/runner/work/tiny_gnupg/tiny_gnupg/tiny_gnupg/gpghome/gpg2
+        sudo cp -rf /usr/bin/gpg2 /home/runner/work/tiny_gnupg/tiny_gnupg/tiny_gnupg/gpghome/gpg2
         sudo service tor start
         python3 -m pip install --upgrade pip pytest flake8
         python3 -m pip install -r tiny_gnupg.egg-info/requires.txt
