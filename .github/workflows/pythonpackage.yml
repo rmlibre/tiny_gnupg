@@ -20,7 +20,7 @@ jobs:
       run: |
         sudo apt-get install tor
         python3 -m pip install --upgrade pip pytest flake8
-        python3 -m pip install --upgrade -r tiny_gnupg.egg-info/requirements.txt
+        python3 -m pip install -r tiny_gnupg.egg-info/requirements.txt
     - name: Lint with flake8
       run: |
         pip install flake8
