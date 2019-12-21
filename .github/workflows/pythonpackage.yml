@@ -18,8 +18,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip pytest flake8
-        pip install -r requirements.txt
+        sudo apt-get --fix-missing udpate
+        sudo apt-get --fix-missing --fix-broken dist-upgrade
+        sudo apt-get --fix-missing --fix-broken install tor
+        python3 -m pip install --upgrade pip pytest flake8
+        python3 -m pip install -r tiny_gnupg.egg-info/requirements.txt
     - name: Lint with flake8
       run: |
         pip install flake8
