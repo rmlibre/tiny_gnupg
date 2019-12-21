@@ -34,9 +34,8 @@ class GnuPG:
     over flexibility in the api. It's designed to turn the complex,
     legacy, but powerful gnupg system into a fun tool to develop with.
     """
-    def __init__(
-        self, username="", email="", passphrase="", torify=False
-    ):
+
+    def __init__(self, username="", email="", passphrase="", torify=False):
         """
         Initialize an instance intended to create, manage, or represent
         a single key in the local package gnupg keyring
@@ -187,9 +186,7 @@ class GnuPG:
     def read_output(self, command=(), inputs=b"", **kw):
         """Quotes terminal escape characters & runs user commands"""
         return check_output(
-            [quote(part) for part in command],
-            input=inputs,
-            **kw,
+            [quote(part) for part in command], input=inputs, **kw
         ).decode()
 
     def gen_key(self):
@@ -273,10 +270,7 @@ class GnuPG:
             if uid not in self.list_keys(secret=True):
                 raise LookupError("No secret key in package keyring.")
             command = self.command(
-                "--command-fd",
-                "0",
-                "--delete-secret-keys",
-                uid,
+                "--command-fd", "0", "--delete-secret-keys", uid
             )
             inputs = self.encode_inputs("y", "y")
             self.read_output(command, inputs)
@@ -293,11 +287,7 @@ class GnuPG:
         """
         uid = self.key_fingerprint(uid)
         command = self.command(
-            "--command-fd",
-            "0",
-            "--gen-revoke",
-            uid,
-            with_passphrase=True,
+            "--command-fd", "0", "--gen-revoke", uid, with_passphrase=True
         )
         command.remove("--batch")
         inputs = self.encode_inputs(self.passphrase, "y", "0", " ", "y")
@@ -416,9 +406,7 @@ class GnuPG:
                 output = error.output
             error_lines = output.decode().strip().split("\n")
             sentinel = "gpg:                using"
-            uid = [
-                line[-40:] for line in error_lines if sentinel in line
-            ]
+            uid = [line[-40:] for line in error_lines if sentinel in line]
             notice = f"UID '{uid}' not in package keyring"
             warning = LookupError(notice)
             warning.value = uid[-1] if uid else fingerprint
@@ -474,7 +462,7 @@ class GnuPG:
             inputs = self.encode_inputs(message)
             return self.read_output(command, inputs)
         except CalledProcessError:
-            notice = f"Missing {fingerprint} or ``message`` unverifiable."
+            notice = f"``message`` is unverifiable."
             error = PermissionError(notice)
             error.value = fingerprint
             raise error
@@ -518,8 +506,7 @@ class GnuPG:
             if "\nuid" in part
         ]
         emails = [
-            self.key_email(fingerprint)
-            for fingerprint in fingerprints
+            self.key_email(fingerprint) for fingerprint in fingerprints
         ]
         return dict(zip(fingerprints, emails))
 
@@ -546,7 +533,6 @@ class GnuPG:
         """Returns the fingerprint on the key matching ``uid``"""
         return next(iter(self.list_keys(uid)))
 
-
     def key_trust(self, uid=""):
         """Returns the current trust level on the key matching ``uid``"""
         key = self.raw_list_keys(uid).replace(" ", "")
@@ -555,13 +541,7 @@ class GnuPG:
 
     def reset_daemon(self):
         """Resets the gpg-agent daemon"""
-        command = [
-            "gpgconf",
-            "--homedir",
-            self.home,
-            "--kill",
-            "gpg-agent",
-        ]
+        command = ["gpgconf", "--homedir", self.home, "--kill", "gpg-agent"]
         kill_output = self.read_output(command)
         command = ["gpg-agent", "--homedir", self.home, "--daemon"]
         reset_output = self.read_output(command)
@@ -682,4 +662,4 @@ class GnuPG:
             command = self.command("-a", "--export", uid)
             return self.read_output(command)
         else:
-            raise TypeError(f"secret != boolean, {type(secret)} given")
+            raise TypeError(f"``secret`` != boolean, {type(secret)} given")

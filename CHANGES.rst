@@ -69,6 +69,12 @@ Minor Changes
 Major Changes
 -------------
 
+-  Fixed a major bug in ``decrypt()`` which miscategorized a fingerprint scraped
+   from a message as the sender's, when in fact it should be the recipient's.
+   Getting the sender's fingerprint requires successfully decrypting the
+   message & scraping the signature from inside if it exists. We do this
+   now, raising ``LookupError`` if the signature inside has no corresponding
+   public key in the package keyring.
 -  Added new ``auto_encrypt()`` method which follows after ``auto_decrypt()``
    in allowing a user to attempt to encrypt a message to a recipient's
    key using the value in the ``uid`` kwarg. If there's no matching key
@@ -90,14 +96,13 @@ Major Changes
       not how verify works. Signatures are on the inside on encrypted
       messages. So ``decrypt()`` should be used for those instead, it
       throws if a signature is invalid on a message.
-   -  ````
+   -  A rough guide now exists for what exceptions mean, since we've given
+      names & messages to the most likely errors, and helper functions
+      to resolve them. Users can now expect to run into more than just
+      the in decript ``CalledProcessError``. Exceptions currently being
+      used include: ``LookupError``, ``PermissionError``, ``TypeError``,
+      ``ValueError``, ``KeyError``, and ``FileNotFoundError``.
 
--  Fixed a bug in ``decrypt()`` which miscategorized a fingerprint scraped
-   from a message as the sender's, when in fact it should be the recipient's.
-   Getting the sender's fingerprint requires successfully decrypting the
-   message & scraping the signature from inside if it exists. We do this
-   now, raising ``LookupError`` if there is a signature inside & the message
-   with a corresponding public key in the package keyring.
 -  ``ValueError`` raised in ``text_export()`` and ``sign()`` switched to
    ``TypeError`` as it's only raised when their ``secret`` or ``key``
    kwargs, respectively, are not of type ``bool``.

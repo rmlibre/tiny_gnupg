@@ -261,8 +261,8 @@ def test_cipher(gpg):
             try:
                 gpg.trust(fingerprint, trust_level)
             except ValueError as invalid_trust_level:
-                if 1 > int(trust_level) or 5 < int(trust_level):
-                    """Successfully blocked invlaid trust level"""
+                # if 1 > int(trust_level) or 5 < int(trust_level):
+                """Successfully blocked invlaid trust level"""
         encrypted_message_0 = gpg.encrypt(
             message=message,
             uid=gpg.fingerprint,
@@ -535,7 +535,7 @@ def test_auto_fetch_methods(gpg):
         run(gpg.auto_verify(dev_signed_encrypted_message))
     except PermissionError as error:
         failed_correctly = True
-        notice = "``message`` unverifiable"
+        notice = "``message`` is unverifiable."
         assert notice in error.args[0]
     finally:
         assert failed_correctly  # signed encrypted message shows only
