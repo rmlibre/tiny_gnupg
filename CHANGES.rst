@@ -2,22 +2,22 @@
 ``Known Issues``
 =================
 
--  Because of Debian `bug #930665`_, and related GnuPG `bug #T4393`_,
+-  Because of Debian `bug #930665`_, & related GnuPG `bug #T4393`_,
    importing keys from the default keyserver `keys.openpgp.org`_ doesn’t
    work automatically on all systems. Not without email confirmation, at
    least. That’s because the keyserver will not publish uid information
    attached to a key before a user confirms access to the email address
    assigned to the uploaded key. And, because GnuPG folks are still
-   holding up the merging, and back-porting, of patches that would allow
+   holding up the merging, & back-porting, of patches that would allow
    GnuPG to automatically handle keys without uids gracefully. This
    effects the ``network_import()`` method specifically, but also the
-   ``text_import()`` and ``file_import()`` methods, if they happen to be
+   ``text_import()`` & ``file_import()`` methods, if they happen to be
    passed a key or filename argument which refers to a key without uid
    information. The gpg2 binary in this package can be replaced manually
    if a user’s system has access to a patched version.
--  Because of GnuPG `bug #T3065`_, and related `bug #1788190`_, the
-   ``--keyserver`` and ``--keyserver-options http-proxy`` options won’t
-   work with onion addresses, and they cause a crash if a keyserver
+-  Because of GnuPG `bug #T3065`_, & related `bug #1788190`_, the
+   ``--keyserver`` & ``--keyserver-options http-proxy`` options won’t
+   work with onion addresses, & they cause a crash if a keyserver
    lookup is attempted. This is not entirely an issue for us since we
    don’t use gnupg’s networking interface. In fact, we set these
    environment variables anyway to crash on purpose if gnupg tries to
@@ -30,18 +30,18 @@
    keys. It seems most keys have successfully been parsed with recent
    updates, though more testing is needed.
 -  The tests don’t currently work when a tester’s system has a system
-   installation of tiny_gnupg, and the tests are being run from a local
+   installation of tiny_gnupg, & the tests are being run from a local
    git repo directory. That’s because the tests import tiny_gnupg, but
    if the program is installed in the system, then python will get
    confused about which keyring to use during the tests. This will lead
-   to crashes and failed tests. Git clone testers probably have to run
+   to crashes & failed tests. Git clone testers probably have to run
    the test script closer to their system installation, one directory up
-   and into a tests folder. Or pip uninstall tiny_gnupg. OR, send a pull
+   & into a tests folder. Or pip uninstall tiny_gnupg. OR, send a pull
    request with an import fix.
--  Currently, the package is part synchronous, and part asynchronous.
+-  Currently, the package is part synchronous, & part asynchronous.
    This is not ideal, so a decision has to be made: either to stay mixed
    style, or choose one consistent style.
--  We’re still in unstable and have to build out our test suite.
+-  We’re still in unstable & have to build out our test suite.
    Contributions welcome.
 
 .. _bug #930665: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665
@@ -55,6 +55,53 @@
 
 ``Changelog``
 =============
+
+
+Changes for version 0.5.4
+=========================
+
+Minor Changes
+-------------
+
+-  Style edits to ``PREADME.rst``.
+
+
+Major Changes
+-------------
+
+-  Added new ``auto_encrypt()`` method which follows after ``auto_decrypt()``
+   in allowing a user to attempt to encrypt a message to a recipient's
+   key using the value in the ``uid`` kwarg. If there's no matching key
+   in the package keyring, then the keyserver is queried for a key
+   that matches ``uid`` where then ``message`` is encrypted if found, or
+   ``FileNotFoundError`` is raised if not.
+-  Added better exception raising throughout the ``GnuPG`` class:
+
+   -  Now, instead of calling ``read_output()`` when the supplied ``uid``
+      has no key in the package keyring, a ``LookupError`` is raised.
+   -  The best attempt at deriving a 40-byte key fingerprint from ``uid`` is
+      returned back through the ``LookupError`` exception object's ``value``
+      attribute for downstream error handling.
+   -  ``verify()`` raises ``PermissionError`` if verification cannot be
+      done on the ``message`` kwarg. Raises ``LookupError`` instead if
+      a public key is needed in order to attempt verification. ``verify``
+      can't be used on an encrypted messages in general, unless ``message``
+      is specifcally a signature, not encrypted plaintext. This is just
+      not how verify works. Signatures are on the inside on encrypted
+      messages. So ``decrypt()`` should be used for those instead, it
+      throws if a signature is invalid on a message.
+   -
+
+-  Fixed a bug in ``decrypt()`` which miscategorized a fingerprint scraped
+   from a message as the sender's, when in fact it should be the recipient's.
+   Getting the sender's fingerprint requires successfully decrypting the
+   message & scraping the signature from inside if it exists. We do this
+   now, raising ``LookupError`` if there is a signature inside & the message
+   with a corresponding public key in the package keyring.
+-  ``ValueError`` raised in ``text_export()`` and ``sign()`` switched to
+   ``TypeError`` as it's only raised when their ``secret`` or ``key``
+   kwargs, respectively, are not of type ``bool``.
+
 
 
 Changes for version 0.5.3
@@ -74,7 +121,7 @@ Changes for version 0.5.2
 Minor Changes
 -------------
 
--  Futher test cleanups. We're now at 100% line coverage and 99% branch
+-  Futher test cleanups. We're now at 100% line coverage & 99% branch
    coverage.
 -  Code cleanups. ``raw_packets()`` now passes the uid information it's
    gathered through the ``KeyError`` exception, in the ``value`` attribute
@@ -90,7 +137,7 @@ Changes for version 0.5.1
 Minor Changes
 -------------
 
--  Fixed inaccuracies and mess-ups in the tests. Added tests for parsing
+-  Fixed inaccuracies & mess-ups in the tests. Added tests for parsing
    some legacy keys' packets with ``raw_packets()``.
 
 
@@ -110,7 +157,7 @@ Changes for version 0.5.0
 Minor Changes
 -------------
 
--  Removed coverage.py html results. They are too big, and reveal device
+-  Removed coverage.py html results. They are too big, & reveal device
    specific information.
 
 
@@ -123,10 +170,10 @@ Minor Changes
 -------------
 
 -  Various code cleanups.
--  Added to test cases for auto fetch methods and packet parsing.
+-  Added to test cases for auto fetch methods & packet parsing.
 -  Documentation improvements: ``README.rst`` edits. ``CHANGES.rst``
    Known Issues moved to its own section at the top. Docstrings now
-   indicate code args and kwargs in restructured text, double tick
+   indicate code args & kwargs in restructured text, double tick
    format.
 -  Added ``use-agent`` back into the gpg2.conf file to help gnupg to not
    open the system pinentry window. This may have implications for
@@ -136,12 +183,12 @@ Minor Changes
    removed again. A factor in this decision is that, it's not clear
    whether removing it or adding ``no-use-agent`` would even `have an impact`_
    on the gpg-agent's decisions.
--  ``_session``, ``_connector``, ``session`` and ``connector`` contructors
+-  ``_session``, ``_connector``, ``session`` & ``connector`` contructors
    were renamed to title case, since they are class references or are
    class factories. They are now named ``_Session``, ``_Connector``,
-   ``Session`` and ``Connector``.
+   ``Session`` & ``Connector``.
 -  Added some functionality to ``setup.py`` so that the ``long_description``
-   on PyPI which displays both ``README.rst`` and ``CHANGES.rst``, will
+   on PyPI which displays both ``README.rst`` & ``CHANGES.rst``, will
    also be displayed on github through a combined ``README.rst`` file.
    The old ``README.rst`` is now renamed ``PREADME.rst``.
 
@@ -163,7 +210,7 @@ Major Changes
    key" error. The longer 40 byte fingerprint is not available in the
    plaintext packets.
 -  New ``list_packets()`` method added to handle the error scraping of
-   ``raw_packets()`` and return the ``target``'s metadata information in
+   ``raw_packets()`` & return the ``target``'s metadata information in
    a more readable format.
 -  Fixed bug in ``format_list_keys()`` which did not properly parse
    ``raw_list_keys(secret=False)`` when ``secret`` was toggled to ``True``
@@ -173,7 +220,7 @@ Major Changes
 -  Added a second round of fingerprint finding in ``decrypt()`` and
    ``verify()`` to try at returning more accurate results to callers and
    in the raised exception's ``value`` attribute used by ``auto_decrypt()``
-   and ``auto_verify()``.
+   & ``auto_verify()``.
 
 
 
@@ -199,21 +246,21 @@ Major Changes
 -------------
 
 -  Added a ``secret`` kwarg to ``list_keys()`` method which is a boolean
-   toogle between viewing keys with public keys and viewing keys with
+   toogle between viewing keys with public keys & viewing keys with
    secret keys.
 -  Added a reference to the asyncio.get_event_loop().run_until_complete
    function in the package. It is now importable with
    ``from tiny_gnupg import run`` or ``from tiny_gnupg import *``. It
-   was present in all of the tutorials, and since we haven’t decided to
+   was present in all of the tutorials, & since we haven’t decided to
    go either all async or sync yet, it’s a nice helper.
 -  Added ``raw_packets(target="")`` method which takes in OpenPGP data,
-   like a message or key, and outputs the raw terminal output of the
+   like a message or key, & outputs the raw terminal output of the
    ``--list-packets`` option. Displays very detailed information of all
    the OpenPGP metadata on ``target``.
 -  Added ``packet_fingerprint(target="")`` method which returns the
    issuer fingerprint scraped off of the metadata returned from
    ``raw_packets(target)``. This is a very effective way to retrieve
-   uid information from OpenPGP signatures, messages and keys to
+   uid information from OpenPGP signatures, messages & keys to
    determine beforehand whether the associated sender's key is or isn't
    already in the package's keyring.
 
@@ -235,15 +282,15 @@ Minor Changes
 Major Changes
 -------------
 
--  Added exception hooks to ``decrypt()`` and ``verify()`` methods. They
+-  Added exception hooks to ``decrypt()`` & ``verify()`` methods. They
    now raise ``KeyError`` when the OpenPGP data they’re verifying
    require a signing key that’s not in the package’s keyring. The
-   fingerprint of the required key is printed out and stored in the
+   fingerprint of the required key is printed out & stored in the
    ``value`` attribute of the raised exception.
--  Added new ``auto_decrypt()`` and ``auto_verify()`` async methods
+-  Added new ``auto_decrypt()`` & ``auto_verify()`` async methods
    which catch the new exception hooks to automatically try a torified
    keyserver lookup before raising a KeyError exception. If a key is
-   found, it’s downloaded and an attempt is made to verify the data.
+   found, it’s downloaded & an attempt is made to verify the data.
 
 
 
@@ -256,7 +303,7 @@ Minor Changes
 
 -  Added to test cases.
 -  Changed the project long description in the ``README.rst``.
--  Added docstrings to all the methods in the ``GnuPG`` class, and the
+-  Added docstrings to all the methods in the ``GnuPG`` class, & the
    class itself.
 
 
@@ -305,7 +352,7 @@ Major Changes
    keys that never expire.
 
 -  Added ``revoke(uid)`` method, which revokes the key with matching
-   ``uid`` if the secret key is owned by the user and the key passphrase
+   ``uid`` if the secret key is owned by the user & the key passphrase
    is stored in the instance’s ``passphrase`` attribute.
 
 
@@ -320,7 +367,7 @@ Minor Changes
 -  Changed package description to name more specifically the kind of ECC
    keys this package handles.
 -  Removed the trailing newline character that was inserted into the end
-   of every ``encrypt()`` and ``sign()`` message.
+   of every ``encrypt()`` & ``sign()`` message.
 -  Added new tests.
 
 
@@ -353,7 +400,7 @@ Major Changes
 -  Added a new ``torify=False`` kwarg to ``__init__()`` which prepends
    ``"torify"`` to each gpg2 command if set to ``True``. This will make
    sure that if gnupg makes any silent connections to keyservers or the
-   web, that they are run through tor and don’t expose a users ip
+   web, that they are run through tor & don’t expose a users ip
    address inadvertently.
 
 
@@ -394,7 +441,7 @@ Major Changes
 -------------
 
 -  Added ``key`` kwarg to the ``sign(target="", key=False)`` method to
-   allow users to toggle between signing arbitrary data and signing a
+   allow users to toggle between signing arbitrary data & signing a
    key in the package’s local keyring.
 -  Changed the ``message`` kwarg in ``sign(message="")`` to ``target``
    so it is also accurate when the method is used to sign keys instead
@@ -437,9 +484,9 @@ Minor Changes
 Major Changes
 -------------
 
--  Added the ``--batch``, ``--quiet`` and ``--yes`` arguments to the
+-  Added the ``--batch``, ``--quiet`` & ``--yes`` arguments to the
    default commands contructed by the ``command()`` method.
--  Added the ``--quiet`` and ``--yes`` arguments to the command
+-  Added the ``--quiet`` & ``--yes`` arguments to the command
    constructed internally to the ``gen_key()`` method.
 -  Added a general uid —> fingerprint uid conversion in ``delete()`` to
    comply with gnupg limitations on how to call functions that
@@ -456,7 +503,7 @@ Minor Changes
 -------------
 
 -  Added new tests.
--  Typos and inaccuracies fixed around the code and documentation.
+-  Typos & inaccuracies fixed around the code & documentation.
 
 
 Major Changes
@@ -465,9 +512,9 @@ Major Changes
 -  Added new ``secret`` kwargs to ``text_export(uid, secret=bool)`` and
    ``file_export(path, uid, secret=bool)`` to allow secret keys to be
    exported from the package’s environment.
--  Added new ``post(url, **kw)`` and ``get(url, **kw)`` methods to allow
+-  Added new ``post(url, **kw)`` & ``get(url, **kw)`` methods to allow
    access to the networking tools without having to manually construct
-   the ``network_post()`` and ``network_get()`` context managers. This
+   the ``network_post()`` & ``network_get()`` context managers. This
    turns network calls into one liners that can be more easily wrapped
    with an asyncio ``run`` function.
 
@@ -481,7 +528,7 @@ Minor Changes
 -------------
 
 -  Added new tests for networking methods.
--  Documentation updates and accuracy fixes.
+-  Documentation updates & accuracy fixes.
 
 
 Major Changes
@@ -521,8 +568,8 @@ Major Changes
 -------------
 
 -  Fixing a major bug in the parameters passed to ``setup()`` which did
-   not correctly tell setuptools to package the gpghome folder and gpg2
-   binary. This may take a few releases to troubleshoot and bug fix
+   not correctly tell setuptools to package the gpghome folder & gpg2
+   binary. This may take a few releases to troubleshoot & bug fix
    fully.
 
 
@@ -552,7 +599,7 @@ Minor Changes
 -  Rolled back the changes in ``trust()`` that checked for trust levels
    on keys to avoid sending an unnecessary byte of data through the
    terminal. Mostly because the attempted fix did not fix the issue. And
-   the correct fix involves a wide branching of state and argument
+   the correct fix involves a wide branching of state & argument
    checking. That runs contrary to the goal of the package for
    simplicity, so it isn’t going to be addressed for now.
 -  Edited some of the ``README.rst`` tutorials.
@@ -584,9 +631,9 @@ Minor Changes
    perspective views the list of keys or modifies trust. It is very
    likely always displaying keys from the perspective of the global
    agent.
--  Typos, redundancies and naming inaccuracies fixed around the code and
+-  Typos, redundancies & naming inaccuracies fixed around the code and
    documentation.
--  Tests updated and added to.
+-  Tests updated & added to.
 
 
 Major Changes
@@ -608,7 +655,7 @@ Changes for version 0.3.0
 Minor Changes
 -------------
 
--  Changed MANIFEST.in to a more specific include structure, and a
+-  Changed MANIFEST.in to a more specific include structure, & a
    redundant exclude structure, to more confidently keep development
    environment key material from being uploaded during packaging.
 
@@ -618,10 +665,10 @@ Major Changes
 
 -  Overhauled the ``gen_key()`` which now creates a different set of
    default keys. We are no longer creating one primary key which does
-   certifying and signing, with one subkey which handles encryption.
+   certifying & signing, with one subkey which handles encryption.
    Instead, we create one certifying primary key, with three subkeys,
-   one each for handling encryption, authentication, and signing. This
-   is a more theoretically secure default key setup, and represents a
+   one each for handling encryption, authentication, & signing. This
+   is a more theoretically secure default key setup, & represents a
    common best-practice.
 
 
@@ -692,7 +739,7 @@ Changes for version 0.2.6
 Minor Changes
 -------------
 
--  Typos, redundancies and naming inaccuracies fixed around the code and
+-  Typos, redundancies & naming inaccuracies fixed around the code and
    documentation.
 -  Added a new POST request tutorial to the ``README.rst``.
 -  Added ``"local_user"`` kwarg to some more methods where the output
@@ -720,44 +767,44 @@ Changes for version 0.2.5
 Minor Changes
 -------------
 
--  Typos, redundancies and naming inaccuracies fixed around the code and
+-  Typos, redundancies & naming inaccuracies fixed around the code and
    documentation.
--  Tests updated and added to.
--  Changed ``raw_network_export()`` and ``raw_network_verify()`` methods
-   into ``raw_api_export()`` and ``raw_api_verify()``, respectively.
+-  Tests updated & added to.
+-  Changed ``raw_network_export()`` & ``raw_network_verify()`` methods
+   into ``raw_api_export()`` & ``raw_api_verify()``, respectively.
    This was done for more clarity as to what those methods are doing.
 
 
 Major Changes
 -------------
 
--  Added ``sign(message)`` and ``verify(message)`` methods.
--  Changed the ``keyserver`` and ``searchserver`` attributes into
+-  Added ``sign(message)`` & ``verify(message)`` methods.
+-  Changed the ``keyserver`` & ``searchserver`` attributes into
    properties so that custom ``port`` attribute changes are now
-   reflected in the constructed url, and the search string used by a
+   reflected in the constructed url, & the search string used by a
    custom keyserver can also be reflected.
 -  Moved all command validation to the ``read_output()`` method which
-   simplifies the construction of ``command()`` and will automatically
+   simplifies the construction of ``command()`` & will automatically
    ``shlex.quote()`` all commands, even those hard-coded into the
    program.
 -  Fixed bug in ``set_homedir()`` which did not construct the default
    gpghome directory string correctly depending on where the current
    working directory of the calling script was.
--  Added ``local_user`` kwarg to ``encrypt()`` and ``sign()`` so a user
+-  Added ``local_user`` kwarg to ``encrypt()`` & ``sign()`` so a user
    can specify which key to use for signing messages, as gnupg
    automatically signs with whatever key it views as the default user
    key. Instead, we assume mesasges are to be signed with the key
    associated with the email address of a GnuPG class instance, or the
    key defined by the ``local_user`` uid if it is passed.
 -  Fixed –list-keys terminal output parsing. We now successfully parse
-   and parameterize the output into email addresses and fingerprints, of
+   & parameterize the output into email addresses & fingerprints, of
    a larger set of types of keys.
--  Added ``delete()`` method for removing both public and private keys
+-  Added ``delete()`` method for removing both public & private keys
    from the local keyring. This method still requires some user
    interaction because a system pinentry-type dialog box opens up to
    confirm deletion. Finding a way to automate this to avoid user
    interaction is in the work.
--  Added automating behavior to the ``sign()`` and ``encrypt()`` methods
+-  Added automating behavior to the ``sign()`` & ``encrypt()`` methods
    so that keys which haven’t been verified will still be used. This is
    done by passing “y” (yes) to the terminal during the process of the
    command.
@@ -772,9 +819,9 @@ Minor Changes
 -------------
 
 -  Updated ``setup.py`` with more package information.
--  Typos, redundancies and naming inaccuracies fixed around the code and
+-  Typos, redundancies & naming inaccuracies fixed around the code and
    documentation.
--  Tests updated and added to.
+-  Tests updated & added to.
 
 
 
@@ -785,7 +832,7 @@ Changes for version 0.2.3
 Minor Changes
 -------------
 
--  Typos and naming inaccuracies fixed around the code and
+-  Typos & naming inaccuracies fixed around the code and
    documentation.
 -  Added package to `git repo`_
 -  Added git repo url to ``setup.py``.
@@ -801,13 +848,13 @@ Changes for version 0.2.2
 Minor Changes
 -------------
 
--  Typos and naming inaccuracies fixed around the code and
+-  Typos & naming inaccuracies fixed around the code and
    documentation.
 -  Switched the internal networking calls to use the higher level
-   ``network_get()`` and ``network_post()`` methods.
+   ``network_get()`` & ``network_post()`` methods.
 -  Removed redundant ``shlex.quote()`` calls on args passed to the
    ``command()`` method.
--  Tests updated and added to.
+-  Tests updated & added to.
 
 .. _git repo: https://github.com/rmlibre/tiny_gnupg.git
 
@@ -827,16 +874,16 @@ Minor Changes
    uri now stored in ``home``. ``key_id`` is now ``fingerprint`` to
    avoid similarities with the naming convention used for the methods
    which query the package environment keys for uid information,
-   i.e. ``key_fingerprint()`` and ``key_email()``.
+   i.e. ``key_fingerprint()`` & ``key_email()``.
 
 
 Major Changes
 -------------
 
 -  Good riddance to the pynput library hack! We figured out how to
-   gracefully send passphrases and other inputs into the gpg2
+   gracefully send passphrases & other inputs into the gpg2
    commandline interface. This has brought major changes to the package,
-   and lots of increased functionality.
+   & lots of increased functionality.
 -  Many added utilities:
 
    -  Keys generated with the ``gen_key()`` method now get stored in a
@@ -853,12 +900,12 @@ Major Changes
       ``async with instance.session as session:``. More info is
       available in the `aiohttp docs`_
    -  New ``text_import(key)``, ``file_import(filename)``,
-      ``text_export(key)``, and ``file_export(path, uid)`` methods for
-      importing and exporting keys from key strings or files.
+      ``text_export(key)``, & ``file_export(path, uid)`` methods for
+      importing & exporting keys from key strings or files.
    -  New ``reset_daemon()`` method for refreshing the system gpg-agent
       daemon if errors begin to occur from manual deletion or
       modification of files in the package/gpghome/ directory.
-   -  New ``encrypt(message, recipient_uid)`` and ``decrypt(message)``
+   -  New ``encrypt(message, recipient_uid)`` & ``decrypt(message)``
       methods. The ``encrypt()`` method automatically signs the message,
       therefore needs the key passphrase to be stored in the
       ``passphrase`` attribute. The same goes for the ``decrypt()``
@@ -867,17 +914,17 @@ Major Changes
       ``read_output(commands, inputs)`` methods can be used to create
       custom commands to the package’s gpg2 environment. This allows for
       flexibility without hardcoding flexibility into every method,
-      which would increase code size and complexity. The ``command()``
+      which would increase code size & complexity. The ``command()``
       method takes a series of options that would normally be passed to
-      the terminal gpg2 program (such as –encrypt) and returns a list
+      the terminal gpg2 program (such as –encrypt) & returns a list
       with those options included, as well as, the other boiler-plate
-      options (like the correct path to the package executable, and the
+      options (like the correct path to the package executable, & the
       package’s local gpg2 environment.). ``encode_inputs()`` takes a
       series of inputs that will be needed by the program called with
-      the ``command()`` instructions, and ``bytes()`` encodes them with
+      the ``command()`` instructions, & ``bytes()`` encodes them with
       the necessary linebreaks to signal separate inputs.
       ``read_output()`` takes the instructions from ``command()`` and
-      inputs from ``encode_inputs()`` and calls
+      inputs from ``encode_inputs()`` & calls
       ``subprocess.check_output(commands, input=inputs).decode()`` on
       them to retrieve the resulting terminal output.
 
