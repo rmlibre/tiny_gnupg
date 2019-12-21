@@ -90,7 +90,7 @@ Major Changes
       not how verify works. Signatures are on the inside on encrypted
       messages. So ``decrypt()`` should be used for those instead, it
       throws if a signature is invalid on a message.
-   -
+   -  ````
 
 -  Fixed a bug in ``decrypt()`` which miscategorized a fingerprint scraped
    from a message as the sender's, when in fact it should be the recipient's.
