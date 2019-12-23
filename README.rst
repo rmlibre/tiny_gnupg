@@ -25,6 +25,8 @@ to change. Contributions are welcome.
 .. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
     :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
 
+.. image:: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
+    :target: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
 
 
 
@@ -332,11 +334,6 @@ After a user no longer considers a key useful, or wants to dissociate from the k
    make a network connection. And in case the bug ever gets fixed (it
    won’t), or by accident the options do work in the future, then a tor
    SOCKSv5 connection will be used instead of a raw connection.
--  Because of Ubuntu `bug #847388`_, Debian `bug #913614`_, & Docker
-   Issues [1_][2_][3_], building a GnuPG centered package using Github
-   actions is a deep cluster of f*cks. This means, for the moment, we
-   don't know which Python versions or Linux distros actually work &
-   build successfully.
 -  This program may only be reliably compatible with keys that are also
    created with this program. That’s because our terminal parsing is
    reliant on specific metadata to be similar across all encountered
@@ -362,11 +359,8 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 .. _keys.openpgp.org: https://keys.openpgp.org/
 .. _bug #T3065: https://dev.gnupg.org/T3065#111023
 .. _bug #1788190: https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1788190
-.. _bug #847388: https://bugs.launchpad.net/bzr/+bug/847388
-.. _bug #913614: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=913614
-.. _1: https://github.com/docker-library/official-images/issues/4252
-.. _2: https://github.com/blacktangent/docker-images/issues/4
-.. _3: https://github.com/nodejs/docker-node/issues/922
+
+
 
 
 ``Changelog``
@@ -382,6 +376,8 @@ Minor Changes
 -  Added to Known Issues. Our package can't build on Github (Or most any
    CI service) for many reasons related their build environments using
    Docker & an issue in GnuPG itself.
+-  Removed Above known issue as a fix was found for using the Github CI
+   tool.
 -  Added ``_home``, ``_executable``, & ``_options`` attributes which
    store the ``pathlib.Path.absolute()`` representation of the associated
    files & directories.
@@ -397,9 +393,12 @@ Major Changes
    a substantial, possibly complete, reduction in the amount of noise gpg2
    prints to the screen. Some of that printed information is helpful to
    see, though. We would add it back in places where it could be informative,
-   but passing ``"--no-tty"`` has the added benefit of potentially causing
-   Docker not to break right out of the gate of a build test. More thought
-   on this is required.
+   but passing ``"--no-tty"`` has the added benefit of allowing Docker not
+   to break right out of the gate of a build test. More thought on this
+   is required.
+-  Removed ``pathlib`` from imports. That module has been in the standard
+   library since c-python3.4. This package isn't looking to be supported
+   for anything older than 3.6.
 
 
 

@@ -25,6 +25,8 @@ to change. Contributions are welcome.
 .. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
     :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
 
+.. image:: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
+    :target: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
 
 
 
