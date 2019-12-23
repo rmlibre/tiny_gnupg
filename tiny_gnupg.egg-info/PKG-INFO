@@ -379,6 +379,8 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         .. _3: https://github.com/nodejs/docker-node/issues/922
         
         
+        
+        
         ``Changelog``
         =============
         
@@ -459,7 +461,6 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
               the in decript ``CalledProcessError``. Exceptions currently being
               used include: ``LookupError``, ``PermissionError``, ``TypeError``,
               ``ValueError``, ``KeyError``, & ``FileNotFoundError``.
-        
         -  ``ValueError`` raised in ``text_export()`` & ``sign()`` switched to
            ``TypeError`` as it's only raised when their ``secret`` or ``key``
            kwargs, respectively, are not of type ``bool``.
