@@ -332,6 +332,11 @@ After a user no longer considers a key useful, or wants to dissociate from the k
    make a network connection. And in case the bug ever gets fixed (it
    won’t), or by accident the options do work in the future, then a tor
    SOCKSv5 connection will be used instead of a raw connection.
+-  Because of Ubuntu `bug #847388`_, Debian `bug #913614`_, & Docker
+   Issues [1_][2_][3_], building a GnuPG centered package using Github
+   actions is a deep cluster of f*cks. This means, for the moment, we
+   don't know which Python versions or Linux distros actually work &
+   build successfully.
 -  This program may only be reliably compatible with keys that are also
    created with this program. That’s because our terminal parsing is
    reliant on specific metadata to be similar across all encountered
@@ -349,7 +354,7 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 -  Currently, the package is part synchronous, & part asynchronous.
    This is not ideal, so a decision has to be made: either to stay mixed
    style, or choose one consistent style.
--  We’re still in unstable & have to build out our test suite.
+-  We’re still in unstable beta & have to build out our test suite.
    Contributions welcome.
 
 .. _bug #930665: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665
@@ -357,12 +362,46 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 .. _keys.openpgp.org: https://keys.openpgp.org/
 .. _bug #T3065: https://dev.gnupg.org/T3065#111023
 .. _bug #1788190: https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1788190
-
-
+.. _bug #847388: https://bugs.launchpad.net/bzr/+bug/847388
+.. _bug #913614: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=913614
+.. _1: https://github.com/docker-library/official-images/issues/4252
+.. _2: https://github.com/blacktangent/docker-images/issues/4
+.. _3: https://github.com/nodejs/docker-node/issues/922
 
 
 ``Changelog``
 =============
+
+
+Changes for version 0.5.5
+=========================
+
+Minor Changes
+-------------
+
+-  Added to Known Issues. Our package can't build on Github (Or most any
+   CI service) for many reasons related their build environments using
+   Docker & an issue in GnuPG itself.
+-  Added ``_home``, ``_executable``, & ``_options`` attributes which
+   store the ``pathlib.Path.absolute()`` representation of the associated
+   files & directories.
+-  Added ``options`` attribute with is the str value of the ``_options``
+   ``pathlib`` path to the configuration file used by the package.
+
+
+Major Changes
+-------------
+
+-  Added ``"--no-tty"`` option to ``command()`` method which conveniently
+   tells gpg2 not to use the terminal to output message. This has lead to
+   a substantial, possibly complete, reduction in the amount of noise gpg2
+   prints to the screen. Some of that printed information is helpful to
+   see, though. We would add it back in places where it could be informative,
+   but passing ``"--no-tty"`` has the added benefit of potentially causing
+   Docker not to break right out of the gate of a build test. More thought
+   on this is required.
+
+
 
 
 Changes for version 0.5.4
@@ -405,13 +444,13 @@ Major Changes
       messages. So ``decrypt()`` should be used for those instead, it
       throws if a signature is invalid on a message.
    -  A rough guide now exists for what exceptions mean, since we've given
-      names & messages to the most likely errors, and helper functions
+      names & messages to the most likely errors, & helper functions
       to resolve them. Users can now expect to run into more than just
       the in decript ``CalledProcessError``. Exceptions currently being
       used include: ``LookupError``, ``PermissionError``, ``TypeError``,
-      ``ValueError``, ``KeyError``, and ``FileNotFoundError``.
+      ``ValueError``, ``KeyError``, & ``FileNotFoundError``.
 
--  ``ValueError`` raised in ``text_export()`` and ``sign()`` switched to
+-  ``ValueError`` raised in ``text_export()`` & ``sign()`` switched to
    ``TypeError`` as it's only raised when their ``secret`` or ``key``
    kwargs, respectively, are not of type ``bool``.
 

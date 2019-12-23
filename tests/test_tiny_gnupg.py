@@ -583,7 +583,7 @@ def test_revoke(gpg):
     finally:
         assert failed  # server removes the key after revocation? No.
         # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
-        # GnuPG bug #T4393 will cause crash
+        # GnuPG bug #T4393 will cause crash. Merge request pending.
 
 
 def test_delete(gpg):

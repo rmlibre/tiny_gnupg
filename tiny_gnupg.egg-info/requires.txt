@@ -1,4 +1,3 @@
-pathlib
 aiohttp
 aiofiles
 aiohttp_socks
