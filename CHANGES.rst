@@ -92,6 +92,9 @@ Major Changes
    but passing ``"--no-tty"`` has the added benefit of potentially causing
    Docker not to break right out of the gate of a build test. More thought
    on this is required.
+-  Removed ``pathlib`` from imports. That module has been in the standard
+   library since c-python3.4. This package isn't looking to be supported
+   for anything older than 3.6.
 
 
 
