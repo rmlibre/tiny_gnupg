@@ -18,10 +18,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        sudo apt-get install tor torsocks gnupg2 gnupg2 gpgconf gpg-agent
+        sudo apt-get install tor torsocks gnupg2 gnupg gpgconf gpg-agent
         sudo apt-get remove gnupg-agent --purge
         sudo service tor start
-        python3 -m pip install --upgrade pip pytest flake8
+        python3 -m pip install --upgrade pip pytest flake8 coverage
         python3 -m pip install -r tiny_gnupg.egg-info/requires.txt
     - name: Lint with flake8
       run: |
@@ -31,5 +31,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pip install pytest coverage
         coverage run -m pytest tests/test_tiny_gnupg.py
