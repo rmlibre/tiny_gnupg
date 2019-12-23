@@ -49,14 +49,14 @@ class GnuPG:
         self.set_network_variables()
 
     def set_homedir(self, path=HOME_PATH):
-        """Initialize a home directory to store gpg2 binary & data"""
-        self.home = self.format_homedir(path)
-        self.executable = str(Path(self.home).absolute() / "gpg2")
+        """Initialize a home directory for gpg2 binary & data"""
+        self._home = Path(path).absolute()
+        self.home = str(self._home)
+        self._executable = self._home / "gpg2"
+        self.executable = str(self._executable)
+        self._options = self._home / "gpg2.conf"
+        self.options = str(self._options)
         self.set_home_permissions(self.home)
-
-    def format_homedir(self, path=HOME_PATH):
-        """Return an absolute path string for the home directory"""
-        return str(Path(path).absolute())
 
     def set_home_permissions(self, home):
         """Set safer permissions on the home directory"""
@@ -75,8 +75,9 @@ class GnuPG:
             "--yes",
             "--batch",
             "--quiet",
+            "--no-tty",
             "--options",
-            str(Path(self.home).absolute() / "gpg2.conf"),
+            self.options,
             "--homedir",
             self.home,
         ]
@@ -218,8 +219,7 @@ class GnuPG:
             "y",
             self.username,
             self.email,
-            # "There's safety in numbers.",
-            " ",
+            "",
             "O",
         )
         output = self.read_output(command, inputs, stderr=STDOUT)
@@ -266,16 +266,12 @@ class GnuPG:
     def delete(self, uid=""):
         """Deletes secret & public key matching ``uid`` from keyring"""
         uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
-        try:
-            if uid not in self.list_keys(secret=True):
-                raise LookupError("No secret key in package keyring.")
+        if uid in self.list_keys(secret=True):
             command = self.command(
                 "--command-fd", "0", "--delete-secret-keys", uid
             )
             inputs = self.encode_inputs("y", "y")
             self.read_output(command, inputs)
-        except LookupError:
-            print("now trying to delete public key...")
         command = self.command("--command-fd", "0", "--delete-key", uid)
         inputs = self.encode_inputs("y")
         return self.read_output(command, inputs)
@@ -584,7 +580,9 @@ class GnuPG:
             "--import-options", "import-drop-uids", "--import"
         )
         # "--import-options", "import-drop-uids" needed to allow import
-        # of keys without uids from Hagrid-like keyservers.
+        # of keys without uids from Hagrid-like keyservers. Doesn't work
+        # b/c of a bug in GnuPG. Pass the option to allow the patch to
+        # take effect if/when one is available.
         command = self.command("--import")
         inputs = self.encode_inputs(key)
         try:

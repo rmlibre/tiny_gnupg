@@ -26,7 +26,7 @@ with open("README.rst", "w+") as readme:
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.5.4",
+    version="0.5.5",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
@@ -83,7 +83,6 @@ setup(
     ),
     include_package_data=True,
     install_requires=[
-        "pathlib",
         "aiohttp",
         "aiofiles",
         "aiohttp_socks",
