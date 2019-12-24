@@ -58,7 +58,7 @@ class GnuPG:
         self.options = str(self._options)
         self.set_home_permissions(self.home)
 
-    def set_home_permissions(self, home):
+    def set_home_permissions(self, home=HOME_PATH):
         """Set safer permissions on the home directory"""
         try:
             home = str(Path(home).absolute())
@@ -105,7 +105,7 @@ class GnuPG:
         """Set network variables for adaptable implementations"""
         self.port = port
         self.tor_port = tor_port
-        self._keyserver = keyserver
+        self._keyserver = keyserver.strip("/")
         self._search_string = search
         self._Connector = SocksConnector
         self._Session = ClientSession
@@ -326,6 +326,12 @@ class GnuPG:
             packets = self.raw_packets(target).split("\n\t")
         except KeyError as warning:
             packets = warning.value.split("\n\t")
+        except CalledProcessError as warning:
+            notice = f"``target`` doesn't seem to be valid OpenPGP data."
+            error = TypeError(notice)
+            error.value = target
+            error.output = warning.output
+            raise error
         listed_packets = []
         for packet in packets:
             listed_packets.append(packet.strip().split("\n"))
@@ -340,6 +346,12 @@ class GnuPG:
             packets = self.raw_packets(target).replace(")", "")
         except KeyError as warning:
             packets = warning.value.replace(")", "")
+        except CalledProcessError as warning:
+            notice = f"``target`` doesn't seem to be valid OpenPGP data."
+            error = TypeError(notice)
+            error.value = target
+            error.output = warning.output
+            raise error
         packets = packets.replace("key ID", "keyid")
         if "(issuer fpr" in packets:
             size = slice(-40, None)
@@ -387,7 +399,7 @@ class GnuPG:
             await self.network_import(uid.value)
             return self.encrypt(message, uid.value, sign, local_user)
 
-    def decrypt(self, message="", *, debug=None):
+    def decrypt(self, message=""):
         """Decrypts ``message`` autodetecting correct key from keyring"""
         fingerprint = self.packet_fingerprint(message)
         fingerprint = self.key_fingerprint(fingerprint)
@@ -395,11 +407,12 @@ class GnuPG:
             command = self.command("-d", with_passphrase=True)
             inputs = self.encode_inputs(self.passphrase, message)
             return self.read_output(command, inputs)
+        except CalledProcessError:
+            pass
+        try:
+            self.read_output(command, inputs, stderr=STDOUT)
         except CalledProcessError as error:
-            try:
-                output = self.read_output(command, inputs, stderr=STDOUT)
-            except CalledProcessError as error:
-                output = error.output
+            output = error.output
             error_lines = output.decode().strip().split("\n")
             sentinel = "gpg:                using"
             uid = [line[-40:] for line in error_lines if sentinel in line]
@@ -551,7 +564,7 @@ class GnuPG:
 
     async def search(self, query=""):
         """Returns keyserver URL of the key found from ``query`` uid"""
-        query = query.replace("@", "%40")
+        query = query.replace("@", "%40").replace(" ", "%20")
         response = await self.raw_search(query)
         if "We found an entry" not in response:
             return ""
@@ -586,9 +599,19 @@ class GnuPG:
         command = self.command("--import")
         inputs = self.encode_inputs(key)
         try:
+            fingerprint = self.packet_fingerprint(key)
             return self.read_output(command_bugfix, inputs, stderr=STDOUT)
-        except:
-            return self.read_output(command, inputs)
+        except CalledProcessError:
+            pass
+        try:
+            return self.read_output(command, inputs, stderr=STDOUT)
+        except CalledProcessError as error:
+            notice = f"{fingerprint} key isn't importable."
+            notice += " See https://dev.gnupg.org/T4393"
+            warning = KeyError(notice)
+            warning.value = key
+            warning.output = error.output.decode()
+            raise warning if "no user ID" in warning.output else error
 
     async def raw_api_export(self, uid=""):
         """

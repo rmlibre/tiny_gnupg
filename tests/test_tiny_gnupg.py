@@ -299,7 +299,7 @@ def test_cipher(gpg):
         msg = encrypted_message_0
         corrupt_message = msg[:201] + msg[202:]
         gpg.decrypt(corrupt_message)
-    except subprocess.CalledProcessError:
+    except TypeError:
         failed = True
         # The metadata on the message is corrupted by dropping a byte,
         # expectedly leading to an error.
