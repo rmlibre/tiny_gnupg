@@ -77,7 +77,8 @@ Major Changes
 
 -  ``--no-tty`` seems to keep most of the noise from terminal output while
    also displaying important banner information. For instance, signature
-   verification still produces detailed signature information.
+   verification still produces detailed signature information. Because it
+   automatically seems to behave as desired, it's here to stay.
 
 
 
