@@ -57,6 +57,31 @@
 =============
 
 
+Changes for version 0.5.6
+=========================
+
+Minor Changes
+-------------
+
+-  Added newly developed ``auto_decrypt()`` & ``auto_encrypt()`` methods
+   to the ``README.rst`` tutorial.
+-  Allow keyserver queries with spaces by replacing ``" "`` with url
+   encoding ``"%20"``.
+-  ``packet_fingerprint(target="")`` & ``list_packets(target="")`` methods
+   now raise ``TypeError`` when ``target`` is clearly not OpenPGP data.
+-  Tests added to account for new error handling in ``tiny_gnupg.py``.
+
+
+Major Changes
+-------------
+
+-  ``--no-tty`` seems to keep most of the noise from terminal output while
+   also displaying important banner information. For instance, signature
+   verification still produces detailed signature information.
+
+
+
+
 Changes for version 0.5.5
 =========================
 
@@ -79,7 +104,7 @@ Major Changes
 -------------
 
 -  Added ``"--no-tty"`` option to ``command()`` method which conveniently
-   tells gpg2 not to use the terminal to output message. This has lead to
+   tells gpg2 not to use the terminal to output messages. This has lead to
    a substantial, possibly complete, reduction in the amount of noise gpg2
    prints to the screen. Some of that printed information is helpful to
    see, though. We would add it back in places where it could be informative,

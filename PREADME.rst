@@ -35,7 +35,7 @@ Install
 
 .. code:: shell
 
-    sudo apt-get install tor
+    sudo apt-get install tor torsocks gnupg2
     pip install --user --upgrade tiny_gnupg
 
 
@@ -107,9 +107,16 @@ Usage Example
     msg = "So, what's the plan this Sunday, Alice?"
     encrypted_message = gpg.encrypt(message=msg, uid="alice@email.domain", sign=True)
 
+    # The process of encrypting a message to a peer whose public key
+    # might not be in the local package keyring is conveniently available
+    # in a single method. It automatically searches for the recipient's
+    # key on the keyserver so it can be used to encrypt the message ->
+    run(gpg.auto_encrypt(msg, "alice@email.domain"))  # Signing is automatic
+
+
     # We could directly send a copy of our key to Alice, or upload it to
     # the keyserver. Alice will need a copy so the signature on the
-    # message can be verified ->
+    # message can be verified. So let's upload it to the keyserver ->
     run(gpg.network_export(uid=gpg.fingerprint))
 
     # Alice could now import our key (after we do an email verification
@@ -118,6 +125,14 @@ Usage Example
 
     # Then Alice can simply receive the encrypted message and decrypt it ->
     decrypted_msg = gpg.decrypt(encrypted_message)
+
+    # The process of decrypting a encrypted & signed message from a peer
+    # whose public key might not be in the local package keyring is
+    # conveniently available in a single method. It automatically determines
+    # the signing key fingerprint, and searches for it on the keyserver
+    # to verify the signature ->
+    decrypted_msg = run(gpg.auto_decrypt(encrypted_message))
+
 
 
 On most systems, because of a bug in GnuPG_, email verification of uploaded keys will be necessary for others to import them from the keyserver. That's because GnuPG will throw an error immediately upon trying to import keys with their uid information stripped off. We will replace the gpg2 executable as soon as a patch becomes available upstream.
