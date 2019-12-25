@@ -252,6 +252,57 @@ def test_export_import(gpg):
         """Successfully blocked non-boolean"""
 
 
+def test_isolated_identities(gpg):
+    anon = GnuPG("anon_user", "anonymous@testing.testing", "rubbish_pw")
+    anon.gen_key()
+    anon_uid = anon.fingerprint
+    ### decrypting
+    enc_msg = gpg.encrypt("hi!", anon_uid)
+    msg = anon.decrypt(enc_msg)
+    try:
+        failed = False
+        gpg.decrypt(enc_msg)
+    except LookupError:
+        failed = True
+        """
+        Same user succefully prevented from decrypting message sent to a
+        different identity.
+        """
+    finally:
+        assert failed
+    ### signatures
+    sig_0 = anon.sign("message", local_user=anon_uid)
+    sig_1 = anon.sign("message")
+    try:
+        failed = False
+        gpg.sign("message", local_user=anon_uid)
+    except PermissionError:
+        failed = True
+        """
+        Same user successfully prevented from signing message with the
+        secret key associated with another identity.
+        """
+    finally:
+        assert failed
+    ### encrypting
+    try:
+        failed = False
+        gpg.encrypt("greetings", anon_uid, local_user=anon_uid)
+    except PermissionError:
+        failed = True
+        """
+        Same user successfully prevented from signing an encrypted message
+        with the secret key associated with another identity.
+        """
+    finally:
+        assert failed
+    while True:
+        try:
+            anon.delete(anon.email)
+        except:
+            break
+
+
 def test_cipher(gpg):
     test_email = "support@keys.openpgp.org"
     run(gpg.network_import(test_email))
