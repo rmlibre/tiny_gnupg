@@ -186,9 +186,28 @@ class GnuPG:
 
     def read_output(self, command=(), inputs=b"", **kw):
         """Quotes terminal escape characters & runs user commands"""
-        return check_output(
-            [quote(part) for part in command], input=inputs, **kw
-        ).decode()
+        try:
+            return check_output(
+                [quote(part) for part in command], input=inputs, **kw
+            ).decode()
+        except Exception as source:
+            error = source
+        try:
+            kw.pop("stderr") if "stderr" in kw else 0
+            check_output(
+                [quote(part) for part in command],
+                input=inputs,
+                stderr=STDOUT,
+                **kw,
+            ).decode()
+        except CalledProcessError as permissions_check:
+            notice = "Passphrase wrong, inexistent key, or invalid rights "
+            notice += "to access secret key."
+            warning = PermissionError(notice)
+            warning.inputs = inputs
+            warning.command = command
+            warning.output = permissions_check.output.decode()
+            raise warning if "Bad passphrase" in warning.output else error
 
     def gen_key(self):
         """
@@ -369,6 +388,7 @@ class GnuPG:
         matching ``local_user`` or defaults to instance key. Optionally,
         if ``sign`` == False, ``message`` won't be signed.
         """
+        self.reset_daemon() if sign else 0
         uid = self.key_fingerprint(uid)  # avoid wkd lookups
         command = self.command(
             "--command-fd",
@@ -401,6 +421,7 @@ class GnuPG:
 
     def decrypt(self, message=""):
         """Decrypts ``message`` autodetecting correct key from keyring"""
+        self.reset_daemon()
         fingerprint = self.packet_fingerprint(message)
         fingerprint = self.key_fingerprint(fingerprint)
         try:
@@ -412,13 +433,13 @@ class GnuPG:
         try:
             self.read_output(command, inputs, stderr=STDOUT)
         except CalledProcessError as error:
-            output = error.output
-            error_lines = output.decode().strip().split("\n")
+            error_lines = error.output.decode().strip().split("\n")
             sentinel = "gpg:                using"
             uid = [line[-40:] for line in error_lines if sentinel in line]
-            notice = f"UID '{uid}' not in package keyring"
+            uid = uid[-1] if uid else ""
+            notice = f"UID '{uid}' not in the instance's keyring."
             warning = LookupError(notice)
-            warning.value = uid[-1] if uid else fingerprint
+            warning.value = uid if uid else fingerprint
             raise warning
 
     async def auto_decrypt(self, message=""):
@@ -438,6 +459,7 @@ class GnuPG:
         uid or the instance default. Optionally signs ``target`` message
         if ``key`` == False.
         """
+        self.reset_daemon()
         if key == True:  # avoid truthiness
             command = self.command(
                 "--local-user",
@@ -464,6 +486,7 @@ class GnuPG:
         Verifies signed ``message`` if the corresponding public key is
         in the local keyring.
         """
+        self.reset_daemon()
         fingerprint = self.packet_fingerprint(message)
         fingerprint = self.key_fingerprint(fingerprint)
         try:
@@ -489,15 +512,15 @@ class GnuPG:
 
     def raw_list_keys(self, uid="", secret=False):
         """Returns the terminal output of the --list-keys ``uid`` option"""
-        secret = "-secret" if secret else ""
+        secret = "secret-" if secret else ""
         if uid:
-            command = self.command(f"--list{secret}-keys", uid)
+            command = self.command(f"--list-{secret}keys", uid)
         else:
-            command = self.command(f"--list{secret}-keys")
+            command = self.command(f"--list-{secret}keys")
         try:
             return self.read_output(command)
         except CalledProcessError:
-            notice = f"UID '{uid}' not in package keyring"
+            notice = f"UID '{uid}' not in package {secret}keyring"
             warning = LookupError(notice)
             warning.value = uid
             raise warning

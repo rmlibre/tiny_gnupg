@@ -392,6 +392,32 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         =============
         
         
+        Changes for version 0.5.7
+        =========================
+        
+        Minor Changes
+        -------------
+        
+        -  Tests added to include checks for instance-isolated identities.
+        
+        
+        Major Changes
+        -------------
+        
+        -  ``reset_daemon()`` calls added to ``decrypt()``, ``verify()``, ``sign()``
+           & ``encrypt()``. This call kills the gpg-agent process & restarts it,
+           which in turn wipes the caching of secret keys available on the system
+           without a passphrase. This is crucial for users of applications with
+           multiple GnuPG objects that handle separate key identities. That's
+           because these methods will now throw ``PermissionError`` or ``LookupError``
+           if a private key operation is needed from an instance which is already
+           assigned to another private key in the keyring. This gives some important
+           anonymity protections to users.
+        -  More improvements to error reporting.
+        
+        
+        
+        
         Changes for version 0.5.6
         =========================
         
