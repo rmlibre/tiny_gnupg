@@ -382,6 +382,29 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 =============
 
 
+Changes for version 0.5.8
+=========================
+
+Minor Changes
+-------------
+
+-  Fix ``setup`` attribution kwargs in ``setup.py``.
+
+
+Major Changes
+-------------
+
+-  Added new ``network_sks_import()`` method which allows users to query the
+   sks infrastructure for public keys as well. We use an onion address mirror
+   of the sks/pks network available here: http://jirk5u4osbsr34t5.onion.
+-  Added new ``manual`` kwarg to ``command`` which simplifies the process
+   of using the ``GnuPG()`` class to manage gpg2 non-programmatically.
+   Passing ``manual=True`` will allow users to craft commands and interact
+   directly with the gpg2 interface.
+
+
+
+
 Changes for version 0.5.7
 =========================
 

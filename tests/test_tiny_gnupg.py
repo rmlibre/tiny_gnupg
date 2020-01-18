@@ -173,9 +173,9 @@ def test_instance(gpg):
         except:
             break
     gpg.set_home_permissions("/ridiculous_root_directory_not_real")
-    # Successfully failed to change permissions on an invalid dir.
-    # We refrain from testing on a root folder that may actually exist
-    # for safety of the tester reasons.
+    # Successfully failed to change permissions on an invalid dir. We
+    # refrain from testing on, or making, a priveleged folder that may
+    # actually exist for safety of the tester reasons.
     gpg.gen_key()
     test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
     test_gpg.gen_key()
@@ -243,13 +243,31 @@ def test_command(gpg):
         assert passphrase_command == gpg.command(with_passphrase=True)
 
 
+def test_manual_command(gpg):
+    custom_command = gpg.command(manual=True)
+    default_command = gpg.command(manual=False)
+    default_command.remove("--yes")
+    default_command.remove("--batch")
+    default_command.remove("--no-tty")
+    assert custom_command == default_command
+    default_passphrase_command = gpg.command(with_passphrase=True)
+    custom_passphrase_command = gpg.command(
+        with_passphrase=True, manual=True
+    )
+    assert default_passphrase_command == custom_passphrase_command
+
+
 def test_export_import(gpg):
     secret_key = gpg.text_export(gpg.fingerprint, secret=True)
     gpg.text_import(secret_key)
     try:
+        failed = False
         gpg.text_export(gpg.fingerprint, secret="Non-boolean value")
     except:
+        failed = True
         """Successfully blocked non-boolean"""
+    finally:
+        assert failed
 
 
 def test_isolated_identities(gpg):
@@ -454,6 +472,25 @@ def test_networking(gpg):
     except FileNotFoundError:
         """Successfully failed to retrieve data for bogus query"""
 
+
+def test_sks_import(gpg):
+    run(
+        gpg.network_sks_import(
+            uid="9D324A9225AA3A80A800F6FAA7416F0D195063B8"
+        )
+    )
+    try:
+        failed = False
+        run(
+            gpg.network_sks_import(
+                uid="Howard Zinn's A People's History of USA."
+            )
+        )
+    except FileNotFoundError:
+        failed = True
+        """Successfully failed to retreive key from invalid uid"""
+    finally:
+        assert failed
 
 
 def test_network_concurrency(gpg):
