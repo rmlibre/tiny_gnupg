@@ -198,19 +198,19 @@ def test_instance(gpg):
     assert gpg.base_command == test_gpg.base_command
     assert gpg.base_passphrase_command == test_gpg.base_passphrase_command
     ###
-    assert gpg.username == "testing_user"
-    assert gpg.email == "testing_user@testing.testing"
-    assert len(gpg.fingerprint) == 40
-    assert type(gpg.fingerprint) == str
-    assert gpg.passphrase == "test_passphrase"
-    assert gpg.home.endswith("gpghome")
-    assert gpg.executable.endswith("gpg2")
-    assert gpg._Connector == SocksConnector
-    assert gpg._Session == ClientSession
     assert gpg.port == 80
     assert gpg.tor_port == 9050
     assert ".onion" in gpg.keyserver
     assert ".onion" in gpg.searchserver
+    assert len(gpg.fingerprint) == 40
+    assert type(gpg.fingerprint) == str
+    assert gpg.home.endswith("gpghome")
+    assert gpg.username == "testing_user"
+    assert gpg.executable.endswith("gpg2")
+    assert gpg.passphrase == "test_passphrase"
+    assert gpg.email == "testing_user@testing.testing"
+    assert gpg._Session == ClientSession
+    assert gpg._Connector == SocksConnector
     assert gpg.fingerprint in gpg.list_keys()
     assert gpg.fingerprint in gpg.list_keys(secret=True)
     assert test_gpg.fingerprint in gpg.list_keys()
@@ -435,7 +435,7 @@ def test_networking(gpg):
     key_from_fingerprint = gpg.text_export(fingerprint)
     assert key_from_email == key_from_fingerprint
     gpg.text_import(key_from_email)
-    run(gpg.network_import(dev_email))
+    # run(gpg.network_import(dev_email))
     try:
         assert key == key_from_email
     except:
@@ -566,17 +566,16 @@ def test_auto_fetch_methods(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     gpg.delete(dev_fingerprint)
-    run(gpg.auto_encrypt(message, dev_fingerprint))
+    run(gpg.auto_encrypt(message, test_fingerprint))
     ###
     ### The server may rate limit queries on the key & cause a crash.
     ### This happens as expected during heavy testing, or when enough
     ### people are running the tests. Wait a bit and try again. This
     ### fetch should pass.
-    gpg.delete(dev_fingerprint)
     msg = run(gpg.auto_decrypt(dev_signed_message))
     dev_key = gpg.text_export(dev_fingerprint)
     gpg.text_import(legacy_key)
-    assert msg.strip() == message
+    assert msg == message
     ###
     packets_0 = gpg.list_packets(dev_signed_encrypted_message)
     packets_1 = gpg.list_packets(dev_encrypted_message)
@@ -632,8 +631,8 @@ def test_auto_fetch_methods(gpg):
         # on an encrypted message in general, unless the message is
         # specifcally a signature, not encrypted plaintext. This is just
         # not how verify works. Signatures are on the inside on encrypted
-        # messages. So ``decrypt()`` should be used, it throws if a
-        # signature is invalid on a message.
+        # messages. So ``decrypt()`` should be used instead, it throws if
+        # a signature is invalid on a message.
     try:
         failed = False
         run(gpg.auto_verify(dev_encrypted_message))
@@ -669,15 +668,15 @@ def test_revoke(gpg):
     except:
         failed = True
     finally:
-        assert failed  # server removes the key after revocation? No.
+        assert failed  # server removes the key after revocation.
         # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
         # GnuPG bug #T4393 will cause crash. Merge request pending.
 
 
 def test_delete(gpg):
-    dev_email = "gonzo.development@protonmail.ch"
-    email = "testing_user@testing.testing"
     amount_of_test_keys = 0
+    email = "testing_user@testing.testing"
+    dev_email = "gonzo.development@protonmail.ch"
     for key_email in gpg.list_keys().values():
         if key_email == email:
             amount_of_test_keys += 1
