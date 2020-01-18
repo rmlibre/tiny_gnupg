@@ -588,11 +588,12 @@ class GnuPG:
     async def network_sks_import(
         self,
         uid="",
-        host="http://jirk5u4osbsr34t5.onion/pks/",
+        host="http://pgpkeysximvxiazm.onion/pks/",
         search="lookup?op=get&search=",
     ):
         try:
-            uid = "0x" + uid if len(uid) == 40 and int(uid, 16) else uid
+            keyid_missing_0x = len(uid) in (16, 40) and int(uid, 16)
+            uid = "0x" + uid if keyid_missing_0x else uid
         except:
             pass
         url = f"{host}{search}{uid.replace('@', '%40').replace(' ', '%20')}"

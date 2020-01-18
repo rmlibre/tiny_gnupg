@@ -25,7 +25,6 @@ tiny_gnupg instead of the --user flag.
 import sys
 import pytest
 import asyncio
-import subprocess
 from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
@@ -567,12 +566,13 @@ def test_auto_fetch_methods(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
     gpg.delete(dev_fingerprint)
-    run(gpg.auto_encrypt(message, test_fingerprint))
+    run(gpg.auto_encrypt(message, dev_fingerprint))
     ###
     ### The server may rate limit queries on the key & cause a crash.
     ### This happens as expected during heavy testing, or when enough
     ### people are running the tests. Wait a bit and try again. This
     ### fetch should pass.
+    gpg.delete(dev_fingerprint)
     msg = run(gpg.auto_decrypt(dev_signed_message))
     dev_key = gpg.text_export(dev_fingerprint)
     gpg.text_import(legacy_key)
@@ -669,9 +669,9 @@ def test_revoke(gpg):
     except:
         failed = True
     finally:
-        assert failed  # server removes the key after revocation.
-        # See https://gitlab.com/hagrid-keyserver/hagrid/issues/137
-        # GnuPG bug #T4393 will cause crash. Merge request pending.
+        assert failed  # server removes the key's uid information after
+        # revocation now. But this test also fails because of a known
+        # bug in GnuPG: bug #T4393 will cause crash.
 
 
 def test_delete(gpg):
