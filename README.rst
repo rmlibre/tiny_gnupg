@@ -381,6 +381,26 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 ``Changelog``
 =============
 
+
+Changes for version 0.6.1
+=========================
+
+Minor Changes
+-------------
+
+-  Edits to ``test_tiny_gnupg.py``.
+
+
+Major Changes
+-------------
+
+-  Cause of CI build failures found. The sks/pks keyserver's onion address
+   was not accessible anymore. They seemed to have switched to a new onion
+   address available here: http://pgpkeysximvxiazm.onion.
+
+
+
+
 Changes for version 0.6.0
 =========================
 
