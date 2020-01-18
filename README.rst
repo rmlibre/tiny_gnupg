@@ -382,6 +382,25 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 =============
 
 
+Changes for version 0.5.9
+=========================
+
+Minor Changes
+-------------
+
+-  Add checks in ``network_sks_import()`` for html failute sentinels.
+
+
+Major Changes
+-------------
+
+-  Spread out the amount of queries per key in ``test_tiny_gnupg.py`` so
+   the keyserver's rate limiting policies don't cause the CI build to
+   fail as often.
+
+
+
+
 Changes for version 0.5.8
 =========================
 
