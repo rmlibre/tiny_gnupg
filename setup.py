@@ -26,13 +26,13 @@ with open("README.rst", "w+") as readme:
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.5.7",
+    version="0.5.8",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",
-    author="Gonzo Investigatory News Agency, LLC",
+    author="Gonzo Investigatory Journalism Agency, LLC",
     author_email="gonzo.development@protonmail.ch",
-    maintainer="Gonzo Investigatory News Agency, LLC",
+    maintainer="Gonzo Investigatory Journalism Agency, LLC",
     maintainer_email="gonzo.development@protonmail.ch",
     classifiers=[
         "Topic :: Utilities",
