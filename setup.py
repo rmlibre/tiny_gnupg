@@ -26,7 +26,7 @@ with open("README.rst", "w+") as readme:
 setup(
     name="tiny_gnupg",
     license="GPLv3",
-    version="0.5.9",
+    version="0.6.0",
     description=description,
     long_description=long_description,
     url="https://github.com/rmlibre/tiny_gnupg",

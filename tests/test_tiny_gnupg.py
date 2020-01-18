@@ -28,11 +28,10 @@ import asyncio
 import subprocess
 from pathlib import Path
 from aiohttp import ClientSession
-from aiohttp_socks import SocksConnector
+from aiohttp_socks import ProxyConnector
 
 PACKAGE_PATH = str(Path(__file__).absolute().parent.parent)
 sys.path.append(PACKAGE_PATH)
-new_task = asyncio.get_event_loop().create_task
 
 from tiny_gnupg import GnuPG, run
 
@@ -148,7 +147,9 @@ def gpg():
     username = "testing_user"
     email = "testing_user@testing.testing"
     passphrase = "test_passphrase"
-    relative_gpg_path = str(Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome")
+    relative_gpg_path = str(
+        Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome"
+    )
     gpg = GnuPG(username, email, passphrase)
     gpg.set_homedir(relative_gpg_path)
     gpg.reset_daemon()
@@ -161,7 +162,7 @@ def pop(dictionary):
 
 
 async def async_method_runner(gpg):
-    assert gpg.Connector.__class__ == SocksConnector
+    assert gpg.Connector.__class__ == ProxyConnector
     async with gpg.Session as session:
         session.__class__ == ClientSession
 
@@ -210,7 +211,7 @@ def test_instance(gpg):
     assert gpg.passphrase == "test_passphrase"
     assert gpg.email == "testing_user@testing.testing"
     assert gpg._Session == ClientSession
-    assert gpg._Connector == SocksConnector
+    assert gpg._Connector == ProxyConnector
     assert gpg.fingerprint in gpg.list_keys()
     assert gpg.fingerprint in gpg.list_keys(secret=True)
     assert test_gpg.fingerprint in gpg.list_keys()
@@ -501,7 +502,7 @@ def test_network_concurrency(gpg):
     async def looper(gpg, uid):
         tasks = []
         for i in range(2):
-            tasks.append(new_task(gpg.search(uid)))
+            tasks.append(asyncio.ensure_future(gpg.search(uid)))
         return tasks
 
     uid = "support@keys.openpgp.org"

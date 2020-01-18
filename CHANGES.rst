@@ -56,6 +56,23 @@
 ``Changelog``
 =============
 
+Changes for version 0.6.0
+=========================
+
+Minor Changes
+-------------
+
+-  Changes to deduce bug causing CI failure.
+
+
+Major Changes
+-------------
+
+-  Switch from ``aiohttp_socks``'s deprecated ``SocksProxy`` to the newer
+   and supported ``ProxyConnector``.
+
+
+
 
 Changes for version 0.5.9
 =========================

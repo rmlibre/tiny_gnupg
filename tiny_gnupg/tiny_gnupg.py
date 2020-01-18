@@ -19,7 +19,7 @@ from aiohttp import ClientSession
 from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 from aiocontext import async_contextmanager
-from aiohttp_socks import SocksConnector, SocksVer
+from aiohttp_socks import ProxyConnector, ProxyType
 
 
 run = asyncio.get_event_loop().run_until_complete
@@ -107,7 +107,7 @@ class GnuPG:
         self.tor_port = tor_port
         self._keyserver = keyserver.strip("/")
         self._search_string = search
-        self._Connector = SocksConnector
+        self._Connector = ProxyConnector
         self._Session = ClientSession
 
     @property
@@ -132,9 +132,9 @@ class GnuPG:
 
     @property
     def Connector(self):
-        """Autoconstruct an aiohttp_socks.SocksConnector instance"""
+        """Autoconstruct an aiohttp_socks.ProxyConnector instance"""
         return self._Connector(
-            socks_ver=SocksVer.SOCKS5,
+            proxy_type=ProxyType.SOCKS5,
             host="127.0.0.1",
             port=self.tor_port,
             rdns=True,
