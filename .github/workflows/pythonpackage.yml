@@ -22,7 +22,7 @@ jobs:
         sudo apt-get remove gnupg-agent --purge
         sudo service tor start
         python3 -m pip install --upgrade pip pytest flake8 coverage
-        python3 -m pip install -r tiny_gnupg.egg-info/requires.txt
+        python3 -m pip install --upgrade -r tiny_gnupg.egg-info/requires.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
