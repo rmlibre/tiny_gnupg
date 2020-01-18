@@ -173,12 +173,18 @@ class GnuPG:
         async with self.network_post(url, **kw) as response:
             return await response.text()
 
-    def command(self, *options, with_passphrase=False):
+    def command(self, *options, with_passphrase=False, manual=False):
         """Autoformats gpg2 commands soley from additional options"""
         if with_passphrase:
             return self.base_passphrase_command + [*options]
-        else:
+        elif not manual:
             return self.base_command + [*options]
+        else:
+            cmd = self.base_command.copy() + [*options]
+            cmd.remove("--yes")
+            cmd.remove("--batch")
+            cmd.remove("--no-tty")
+            return cmd
 
     def encode_inputs(self, *inputs):
         """Prepares inputs *X for subprocess.check_output(input=*X)"""
@@ -321,7 +327,7 @@ class GnuPG:
         return self.read_output(command, inputs)
 
     def raw_packets(self, target=""):
-        """Returns metadata string of a gpg message, key or signature"""
+        """Returns OpenPGP metadata from ``target`` in raw string format"""
         command = self.command(
             "--pinentry-mode",
             "cancel",
@@ -578,6 +584,23 @@ class GnuPG:
         command = ["gpg-agent", "--homedir", self.home, "--daemon"]
         reset_output = self.read_output(command)
         return kill_output, reset_output
+
+    async def network_sks_import(
+        self,
+        uid="",
+        host="http://jirk5u4osbsr34t5.onion/pks/",
+        search="lookup?op=get&search=",
+    ):
+        try:
+            uid = "0x" + uid if len(uid) == 40 and int(uid, 16) else uid
+        except:
+            pass
+        url = f"{host}{search}{uid.replace('@', '%40').replace(' ', '%20')}"
+        html = await self.get(url)
+        if "Sorry! The server could not find" in html:
+            raise FileNotFoundError(f"UID '{uid}' not found on server.")
+        key = html[html.find("<pre>") + 5 : html.find("</pre>")]
+        return self.text_import(key)
 
     async def raw_search(self, query=""):
         """Returns HTML of keyserver key search matching ``query`` uid"""
