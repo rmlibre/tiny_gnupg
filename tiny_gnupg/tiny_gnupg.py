@@ -597,7 +597,11 @@ class GnuPG:
             pass
         url = f"{host}{search}{uid.replace('@', '%40').replace(' ', '%20')}"
         html = await self.get(url)
-        if "Sorry! The server could not find" in html:
+        if (
+            "Sorry! The server could not find" in html
+            or "No results found" in html
+            or "No keys found" in html
+        ):
             raise FileNotFoundError(f"UID '{uid}' not found on server.")
         key = html[html.find("<pre>") + 5 : html.find("</pre>")]
         return self.text_import(key)
