@@ -131,8 +131,8 @@ class GnuPG:
     )
     """
     _HOME_DIR = Path(__file__).absolute().parent / "gpghome"
-    _EXECUTABLE_PATH = _HOME_DIR / "gpg2"
     _OPTIONS_PATH = _HOME_DIR / "gpg2.conf"
+    _EXECUTABLE_PATH = Path("/usr/bin/gpg2").absolute()
 
     def __init__(
         self,
@@ -147,7 +147,7 @@ class GnuPG:
     ):
         """
         Initialize an instance intended to create, manage, or represent
-        a single key in the local package gnupg keyring
+        a single key in the local package gnupg keyring.
         """
         self.set_homedir(homedir)
         self.set_options(options)
