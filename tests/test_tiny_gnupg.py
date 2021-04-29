@@ -691,19 +691,9 @@ def test_revoke(gpg):
 
 
 def test_delete(gpg):
-    amount_of_test_keys = 0
-    email = "testing_user@testing.testing"
-    support_email = "support@keys.openpgp.org"
-    dev_email = "gonzo.development@protonmail.ch"
-    another_uid = "4826A9293FB8DF4765192455CDD760B5E60DB4F8"
-    for key_email in gpg.list_keys().values():
-        if key_email in {email, dev_email, support_email, another_uid}:
-            amount_of_test_keys += 1
+    number_of_keys_before_delete = len(gpg.list_keys())
     gpg.delete(gpg.fingerprint)
-    amount_of_test_keys_after_delete = 0
-    for key_email in gpg.list_keys().values():
-        amount_of_test_keys_after_delete += 1 if key_email == email else 0
-    assert amount_of_test_keys - 1 == amount_of_test_keys_after_delete
+    assert len(gpg.list_keys()) + 1 == number_of_keys_before_delete
     while True:
         try:
             gpg.delete(gpg.email)
