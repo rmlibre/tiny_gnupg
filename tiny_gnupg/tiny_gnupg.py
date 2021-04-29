@@ -48,67 +48,72 @@ class Network:
     """
     A simple type to create & manage connections to Tor & the internet.
     """
-    ProxyType = ProxyType
-    ClientSession = ClientSession
-    ProxyConnector = ProxyConnector
+    _ProxyType = ProxyType
+    _ClientSession = ClientSession
+    _ProxyConnector = ProxyConnector
 
     def __init__(self, *, port=80, tor_port=9050):
         self.port = port
         self.tor_port = tor_port
 
-    @property
-    def _Connector(self):
+    def Connector(
+        self, *, proxy_type=None, host=None, port=None, rdns=True
+    ):
         """
         Autoconstruct an aiohttp_socks.ProxyConnector instance.
         """
-        return self.ProxyConnector(
-            proxy_type=self.ProxyType.SOCKS5,
-            host="localhost",
-            port=self.tor_port,
-            rdns=True,
+        return self._ProxyConnector(
+            proxy_type=proxy_type if proxy_type else self._ProxyType.SOCKS5,
+            host=host if host else "localhost",
+            port=port if port else self.tor_port,
+            rdns=rdns,
         )
 
-    @property
-    def _Session(self):
+    def Session(
+        self, *, proxy_type=None, host=None, port=None, rdns=True, **kw
+    ):
         """
         Autoconstruct an aiohttp.ClientSession instance.
         """
-        return self.ClientSession(connector=self._Connector)
+        connector = self.Connector(
+            proxy_type=proxy_type, host=host, port=port, rdns=rdns
+        )
+        return self._ClientSession(connector=connector, **kw)
 
     @async_contextmanager
-    async def network_get(self, url="", **kw):
+    async def context_get(self, url, **kw):
         """
         Opens a aiohttp.ClientSession.get context manager.
         """
         try:
-            session = await self._Session.__aenter__()
+            session = await self.Session().__aenter__()
             yield await session.get(url, **kw)
         finally:
             await session.close()
 
     @async_contextmanager
-    async def network_post(self, url="", **kw):
+    async def context_post(self, url, **kw):
         """
         Opens a aiohttp.ClientSession.post context manager.
         """
         try:
-            session = await self._Session.__aenter__()
+            session = await self.Session().__aenter__()
             yield await session.post(url, **kw)
         finally:
             await session.close()
 
-    async def get(self, url="", **kw):
+    async def get(self, url, **kw):
         """
         Returns text of an aiohttp.ClientSession.get request.
         """
-        async with self.network_get(url, **kw) as response:
+        async with self.context_get(url, **kw) as response:
             return await response.text()
 
-    async def post(self, url="", **kw):
+    async def post(self, url, **kw):
         """
         Returns text of an aiohttp.ClientSession.post request.
         """
-        async with self.network_post(url, **kw) as response:
+        async with self.context_post(url, **kw) as response:
             return await response.text()
 
 
@@ -182,7 +187,7 @@ class GnuPG:
 
     def set_homedir(self, path=None):
         """
-        Initialize a home directory for gpg2 binary & data.
+        Initialize a home directory for gpg2 data to be saved.
         """
         path = Path(path).absolute() if path else self._HOME_DIR
         self._homedir = path
@@ -191,7 +196,7 @@ class GnuPG:
 
     def set_options(self, path=None):
         """
-        Initialize a path to the gpg config file.
+        Initialize a path to the gpg2 config file.
         """
         path = Path(path).absolute() if path else self._OPTIONS_PATH
         self._options = path
@@ -199,7 +204,7 @@ class GnuPG:
 
     def set_executable(self, path=None):
         """
-        Initialize a path to the gpg executable binary.
+        Initialize a path to the gpg2 executable binary.
         """
         path = Path(path).absolute() if path else self._EXECUTABLE_PATH
         self._executable = path

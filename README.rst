@@ -232,7 +232,7 @@ Networking Example
         Use the instance's interface to read the page located at the url 
         with a wrapper around an `aiohttp.ClientSession` context manager. 
         """ 
-        async with client.network_get(url) as response: 
+        async with client.context_get(url) as response: 
         
             return await response.text() 
 
@@ -261,7 +261,7 @@ Networking Example
     ip_addr = run(client.get("https://icanhazip.com/")) 
     
 
-    # POST requests can also be sent with the network_post() method. 
+    # POST requests can also be sent with the context_post() method. 
     
     # Let's use a POST request to send the keyserver a new key we 
     
@@ -273,7 +273,7 @@ Networking Example
         keyserver with a wrapper around an `aiohttp.ClientSession` 
         context manager. 
         """ 
-        async with client.network_post(url, json=payload) as response: 
+        async with client.context_post(url, json=payload) as response: 
         
             return await response.text() 
 
@@ -427,17 +427,17 @@ Extras
     
     path_to_file = "/home/user/keyfiles/" 
     
-    run(gpg.file_import(path=path_to_file + "alices_key.asc")) 
+    gpg.file_import(path=path_to_file + "alices_key.asc") 
     
 
     # As well as exporting public keys -> 
     
-    run(gpg.file_export(path=path_to_file, uid=gpg.email)) 
+    gpg.file_export(path=path_to_file, uid=gpg.email) 
     
 
     # And secret keys, but really, keep those safe! -> 
     
-    run(gpg.file_export(path=path_to_file, uid=gpg.email, secret=True)) 
+    gpg.file_export(path=path_to_file, uid=gpg.email, secret=True) 
     
 
     # The keys don't have to be exported to a file. Instead they can 
@@ -493,11 +493,11 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     key = gpg.text_export(gpg.fingerprint)  # <--  Distribute this! 
 
 
-    # Uploading the revoked key will let others know the key has been
+    # Uploading the revoked key will let others know the key has been 
 
-    # retired. This cannot be undone ->
+    # retired. This cannot be undone -> 
 
-    run(gpg.network_export(gpg.fingerprint))
+    run(gpg.network_export(gpg.fingerprint)) 
     
 
     # The key can also be deleted from the package keyring like this -> 
@@ -572,16 +572,29 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
 
 
-``Changelog``
-=============
+``Changelog`` 
+============= 
 
 
-Changes for version 0.7.0
-=========================
+Changes for version 0.7.1 
+========================= 
 
 
-Major Changes
--------------
+Minor Changes 
+------------- 
+
+-  Some interface refactorings for the ``Network`` class. 
+-  Some docstring & readme fixes. 
+
+
+
+
+Changes for version 0.7.0 
+========================= 
+
+
+Major Changes 
+------------- 
 
 -  The package no longer comes with its own gpg2 binary. The ``GnuPG`` class 
    was altered so that a user can set the path to the binary that exists 

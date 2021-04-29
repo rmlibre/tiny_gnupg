@@ -57,16 +57,29 @@
 
 
 
-``Changelog``
-=============
+``Changelog`` 
+============= 
 
 
-Changes for version 0.7.0
-=========================
+Changes for version 0.7.1 
+========================= 
 
 
-Major Changes
--------------
+Minor Changes 
+------------- 
+
+-  Some interface refactorings for the ``Network`` class. 
+-  Some docstring & readme fixes. 
+
+
+
+
+Changes for version 0.7.0 
+========================= 
+
+
+Major Changes 
+------------- 
 
 -  The package no longer comes with its own gpg2 binary. The ``GnuPG`` class 
    was altered so that a user can set the path to the binary that exists 
