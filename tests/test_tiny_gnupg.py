@@ -174,8 +174,8 @@ def pop(dictionary):
 
 
 async def async_method_runner(gpg):
-    assert gpg.Connector.__class__ == ProxyConnector
-    async with gpg.Session as session:
+    assert gpg.network._Connector.__class__ == ProxyConnector
+    async with gpg.network._Session as session:
         session.__class__ == ClientSession
 
 
@@ -210,24 +210,22 @@ def test_instance(gpg):
     assert gpg.user.username == test_gpg.user.username
     assert gpg.user.email == test_gpg.user.email
     assert gpg.user.passphrase == test_gpg.user.passphrase
-    assert gpg.port == test_gpg.port
-    assert gpg.tor_port == test_gpg.tor_port
+    assert gpg.network.port == test_gpg.network.port
+    assert gpg.network.tor_port == test_gpg.network.tor_port
     assert gpg.homedir == test_gpg.homedir
     assert gpg.executable == test_gpg.executable
-    assert gpg._Connector == test_gpg._Connector
-    assert gpg._Session == test_gpg._Session
     run(async_method_runner(gpg))
-    assert gpg._search_string == test_gpg._search_string
+    assert gpg._search_prefix == test_gpg._search_prefix
     assert gpg._keyserver == test_gpg._keyserver
-    assert str(gpg.port) in gpg._keyserver
+    assert str(gpg.network.port) in gpg._keyserver
     assert gpg._keyserver_export_api == test_gpg._keyserver_export_api
     assert gpg._keyserver_verify_api == test_gpg._keyserver_verify_api
     assert gpg._searchserver == test_gpg._searchserver
     assert gpg._base_command == test_gpg._base_command
     assert gpg._base_passphrase_command == test_gpg._base_passphrase_command
     ###
-    assert gpg.port == 80
-    assert gpg.tor_port == 9050
+    assert gpg.network.port == 80
+    assert gpg.network.tor_port == 9050
     assert ".onion" in gpg._keyserver
     assert ".onion" in gpg._searchserver
     assert len(gpg.fingerprint) == 40
@@ -237,8 +235,6 @@ def test_instance(gpg):
     assert gpg.executable.endswith("gpg2")
     assert gpg.user.passphrase == "test_passphrase"
     assert gpg.user.email == "testing_user@testing.testing"
-    assert gpg._Session == ClientSession
-    assert gpg._Connector == ProxyConnector
     assert gpg.fingerprint in gpg.list_keys()
     assert gpg.fingerprint in gpg.list_keys(secret=True)
     assert test_gpg.fingerprint in gpg.list_keys()
@@ -465,7 +461,7 @@ def test_networking(gpg):
     assert " " not in key_url
     assert "<" not in key_url
     assert ">" not in key_url
-    key = run(gpg.get(key_url))
+    key = run(gpg.network.get(key_url))
     gpg.text_import(key)
     assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
@@ -488,7 +484,7 @@ def test_networking(gpg):
     run(gpg.network_export(gpg.fingerprint))
     test_key_url = run(gpg.search(gpg.fingerprint))
     local_key = gpg.text_export(gpg.fingerprint)
-    network_key = run(gpg.get(test_key_url))
+    network_key = run(gpg.network.get(test_key_url))
     assert local_key != network_key  # removed and/or reencoded uids
     try:
         failed = False
