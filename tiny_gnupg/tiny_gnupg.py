@@ -69,15 +69,11 @@ class Network:
             rdns=rdns,
         )
 
-    def Session(
-        self, *, proxy_type=None, host=None, port=None, rdns=True, **kw
-    ):
+    def Session(self, *, connector=None, **kw):
         """
         Autoconstruct an aiohttp.ClientSession instance.
         """
-        connector = self.Connector(
-            proxy_type=proxy_type, host=host, port=port, rdns=rdns
-        )
+        connector = connector if connector else self.Connector()
         return self._ClientSession(connector=connector, **kw)
 
     @async_contextmanager

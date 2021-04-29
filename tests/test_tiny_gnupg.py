@@ -174,8 +174,9 @@ def pop(dictionary):
 
 
 async def async_method_runner(gpg):
-    assert gpg.network._Connector.__class__ == ProxyConnector
-    async with gpg.network._Session as session:
+    connector = gpg.network.Connector()
+    assert connector.__class__ == ProxyConnector
+    async with gpg.network.Session(connector=connector) as session:
         session.__class__ == ClientSession
 
 
