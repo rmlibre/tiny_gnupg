@@ -1,11 +1,11 @@
 Metadata-Version: 2.1
 Name: tiny-gnupg
-Version: 0.7.2
+Version: 0.7.3
 Summary: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 Home-page: https://github.com/rmlibre/tiny_gnupg
-Author: Gonzo Investigatory Journalism Agency, LLC
+Author: Gonzo Investigative Journalism Agency, LLC
 Author-email: gonzo.development@protonmail.ch
-Maintainer: Gonzo Investigatory Journalism Agency, LLC
+Maintainer: Gonzo Investigative Journalism Agency, LLC
 Maintainer-email: gonzo.development@protonmail.ch
 License: GPLv3
 Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
@@ -1728,7 +1728,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         
         
-Keywords: gpg gpg2 gnupg gnupg2 await async asyncio clean simple code tor elliptic curve crypto ed25519 25519 wrapper anonymous anonymity security beta testing automation adapter-pattern communications SOCKSv5 socks5 web
+Keywords: gpg gpg2 gnupg gnupg2 pgp openpgp org await async asyncio aiohttp clean simple code elliptic curve crypto ed25519 25519 wrapper automation adapter-pattern tor anonymous anonymity security appsec opsec infosec beta testing communications comms message messages encrypt encryption authentication decrypt decryption verify verification signature signatures SOCKSv5 socks5 proxy web key keys keyserver
 Platform: UNKNOWN
 Classifier: Framework :: AsyncIO
 Classifier: Natural Language :: English

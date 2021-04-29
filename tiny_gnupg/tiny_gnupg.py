@@ -189,6 +189,7 @@ class GnuPG:
         self._homedir = path
         self.homedir = str(path)
         self._set_homedir_permissions()
+        self._reset_base_command()
 
     def set_options(self, path=None):
         """
@@ -197,6 +198,7 @@ class GnuPG:
         path = Path(path).absolute() if path else self._OPTIONS_PATH
         self._options = path
         self.options = str(path)
+        self._reset_base_command()
 
     def set_executable(self, path=None):
         """
@@ -205,6 +207,7 @@ class GnuPG:
         path = Path(path).absolute() if path else self._EXECUTABLE_PATH
         self._executable = path
         self.executable = str(path)
+        self._reset_base_command()
 
     def _set_base_command(self, torify=False):
         """
@@ -228,6 +231,17 @@ class GnuPG:
             "--passphrase-fd",
             "0",
         ]
+
+    def _reset_base_command(self):
+        """
+        If a user changes the instance's paths to resources stored on
+        the filesystem after initialization, then this method is called
+        to reset the instance's base command to incorporate those
+        changes.
+        """
+        if hasattr(self, "_base_command"):
+            torify = True if "torify" in self._base_command else False
+            self._set_base_command(torify=torify)
 
     def _set_fingerprint(self, uid=""):
         """
