@@ -1,4 +1,3 @@
-
 ``Known Issues``
 =================
 
@@ -43,12 +42,17 @@
    style, or choose one consistent style.
 -  We’re still in unstable beta & have to build out our test suite.
    Contributions welcome.
+-  The tests seems to fail on some systems because of a torsocks 
+   filter [1_][2_] which blocks some syscalls. This may be patched or not
+   applicable on non-linux operating systems.
 
 .. _bug #930665: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930665
 .. _bug #T4393: https://dev.gnupg.org/T4393
 .. _keys.openpgp.org: https://keys.openpgp.org/
 .. _bug #T3065: https://dev.gnupg.org/T3065#111023
 .. _bug #1788190: https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1788190
+.. _1: https://stackoverflow.com/questions/46634215/torsocks-and-unsupported-syscalls
+.. _2: https://gitlab.torproject.org/legacy/trac/-/issues/28861
 
 
 
@@ -57,8 +61,50 @@
 =============
 
 
+Changes for version 0.7.0
+=========================
+
+
+Major Changes
+-------------
+
+-  The package no longer comes with its own gpg2 binary. The ``GnuPG`` class 
+   was altered so that a user can set the path to the binary that exists 
+   on their system manually. The path to the config file & to the home 
+   directory can also be set independently now as well. Although, the 
+   home directory & config file still default to the one's in the 
+   package. These changes should allow users to more easily utilize the 
+   package even if they aren't using Debian-like operating systems. 
+-  The interface for the ``GnuPG`` class was also made a bit smaller by 
+   making some methods private. 
+-  The asynchronous file import & export functions were switched to 
+   synchronous calls. This is a push towards a more sycnhronous focus, as 
+   the gpg2 binary & gpg-agent processes don't play well with threaded 
+   or truly asynchronous execution. The networking asynchrony will 
+   remain. 
+-  Heavy refactoring for method names to make the interface more unified 
+   & conherent. 
+-  The ``GnuPG`` class now only receives keyword-only arguments. The 
+   ``username``, ``email`` & ``passphrase`` parameters no longer use 
+   empty default string values. 
+-  Removed the ``network_sks_import`` method which was no longer working. 
+   The onion sks server seems to change its onion address to frequently 
+   to maintain support within the package. 
+-  Created ``Network`` & ``User`` classes to better separate concerns 
+   to dedicated & expressive objects. 
+
+
+Minor Changes 
+------------- 
+
+-  Various refactorings. 
+-  Some bug fixes in the html parsing of the keyserver responses. 
+
+
+
 Changes for version 0.6.1
 =========================
+
 
 Minor Changes
 -------------
@@ -79,6 +125,7 @@ Major Changes
 Changes for version 0.6.0
 =========================
 
+
 Minor Changes
 -------------
 
@@ -96,6 +143,7 @@ Major Changes
 
 Changes for version 0.5.9
 =========================
+
 
 Minor Changes
 -------------
@@ -115,6 +163,7 @@ Major Changes
 
 Changes for version 0.5.8
 =========================
+
 
 Minor Changes
 -------------
@@ -138,6 +187,7 @@ Major Changes
 
 Changes for version 0.5.7
 =========================
+
 
 Minor Changes
 -------------
@@ -165,6 +215,7 @@ Major Changes
 Changes for version 0.5.6
 =========================
 
+
 Minor Changes
 -------------
 
@@ -190,6 +241,7 @@ Major Changes
 
 Changes for version 0.5.5
 =========================
+
 
 Minor Changes
 -------------
@@ -226,6 +278,7 @@ Major Changes
 
 Changes for version 0.5.4
 =========================
+
 
 Minor Changes
 -------------
@@ -279,6 +332,7 @@ Major Changes
 Changes for version 0.5.3
 =========================
 
+
 Minor Changes
 -------------
 
@@ -289,6 +343,7 @@ Minor Changes
 
 Changes for version 0.5.2
 =========================
+
 
 Minor Changes
 -------------
@@ -305,6 +360,7 @@ Minor Changes
 
 Changes for version 0.5.1
 =========================
+
 
 Minor Changes
 -------------
@@ -326,6 +382,7 @@ Major Changes
 Changes for version 0.5.0
 =========================
 
+
 Minor Changes
 -------------
 
@@ -337,6 +394,7 @@ Minor Changes
 
 Changes for version 0.4.9
 =========================
+
 
 Minor Changes
 -------------
@@ -399,6 +457,7 @@ Major Changes
 Changes for version 0.4.8
 =========================
 
+
 Minor Changes
 -------------
 
@@ -442,6 +501,7 @@ Major Changes
 Changes for version 0.4.7
 =========================
 
+
 Minor Changes
 -------------
 
@@ -470,6 +530,7 @@ Major Changes
 Changes for version 0.4.6
 =========================
 
+
 Minor Changes
 -------------
 
@@ -492,6 +553,7 @@ Major Changes
 Changes for version 0.4.5
 =========================
 
+
 Minor Changes
 -------------
 
@@ -508,6 +570,7 @@ Major Changes
 
 Changes for version 0.4.4
 =========================
+
 
 Minor Changes
 -------------
@@ -533,6 +596,7 @@ Major Changes
 Changes for version 0.4.3
 =========================
 
+
 Minor Changes
 -------------
 
@@ -555,6 +619,7 @@ Major Changes
 
 Changes for version 0.4.2
 =========================
+
 
 Minor Changes
 -------------
@@ -581,6 +646,7 @@ Major Changes
 Changes for version 0.4.1
 =========================
 
+
 Minor Changes
 -------------
 
@@ -591,6 +657,7 @@ Minor Changes
 
 Changes for version 0.4.0
 =========================
+
 
 Minor Changes
 -------------
@@ -625,6 +692,7 @@ Major Changes
 Changes for version 0.3.9
 =========================
 
+
 Minor Changes
 -------------
 
@@ -644,6 +712,7 @@ Major Changes
 
 Changes for version 0.3.8
 =========================
+
 
 Minor Changes
 -------------
@@ -671,6 +740,7 @@ Major Changes
 Changes for version 0.3.7
 =========================
 
+
 Minor Changes
 -------------
 
@@ -696,6 +766,7 @@ Major Changes
 Changes for version 0.3.6
 =========================
 
+
 Minor Changes
 -------------
 
@@ -715,6 +786,7 @@ Major Changes
 
 Changes for version 0.3.5
 =========================
+
 
 Minor Changes
 -------------
@@ -736,6 +808,7 @@ Major Changes
 Changes for version 0.3.4
 =========================
 
+
 Major Changes
 -------------
 
@@ -749,6 +822,7 @@ Major Changes
 
 Changes for version 0.3.3
 =========================
+
 
 Major Changes
 -------------
@@ -764,6 +838,7 @@ Major Changes
 
 Changes for version 0.3.2
 =========================
+
 
 Minor Changes
 -------------
@@ -788,6 +863,7 @@ Major Changes
 
 Changes for version 0.3.1
 =========================
+
 
 Minor Changes
 -------------
@@ -824,6 +900,7 @@ Major Changes
 Changes for version 0.3.0
 =========================
 
+
 Minor Changes
 -------------
 
@@ -848,6 +925,7 @@ Major Changes
 
 Changes for version 0.2.9
 =========================
+
 
 Minor Changes
 -------------
@@ -877,6 +955,7 @@ Major Changes
 Changes for version 0.2.8
 =========================
 
+
 Minor Changes
 -------------
 
@@ -897,6 +976,7 @@ Major Changes
 Changes for version 0.2.7
 =========================
 
+
 Minor Changes
 -------------
 
@@ -907,6 +987,7 @@ Minor Changes
 
 Changes for version 0.2.6
 =========================
+
 
 Minor Changes
 -------------
@@ -935,6 +1016,7 @@ Major Changes
 
 Changes for version 0.2.5
 =========================
+
 
 Minor Changes
 -------------
@@ -987,6 +1069,7 @@ Major Changes
 Changes for version 0.2.4
 =========================
 
+
 Minor Changes
 -------------
 
@@ -1017,6 +1100,7 @@ Minor Changes
 Changes for version 0.2.2
 =========================
 
+
 Minor Changes
 -------------
 
@@ -1035,6 +1119,7 @@ Minor Changes
 
 Changes for version 0.2.1
 =========================
+
 
 Minor Changes
 -------------
@@ -1101,3 +1186,6 @@ Major Changes
       them to retrieve the resulting terminal output.
 
 .. _aiohttp docs: https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+
+
+

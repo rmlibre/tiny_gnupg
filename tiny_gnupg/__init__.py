@@ -2,12 +2,24 @@
 # handling GnuPG ed25519 ECC keys.
 #
 # Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
-# Copyright © 2019-2020 Gonzo Investigatory Journalism Agency, LLC
+# Copyright © 2019-2021 Gonzo Investigative Journalism Agency, LLC
 #             <gonzo.development@protonmail.ch>
-#           © 2019-2020 Richard Machado, <rmlibre@riseup.net>
+#           © 2019-2021 Richard Machado, <rmlibre@riseup.net>
 # All rights reserved.
 #
 
-__version__ = "0.6.1"
 
-from .tiny_gnupg import GnuPG, run, __all__
+__version__ = "0.7.0"
+
+
+__license__ = "GPLv3"
+
+
+__doc__ = (
+    "tiny_gnupg - a small-as-possible solution for handling GnuPG "
+    "ed25519 ECC keys."
+)
+
+
+from .tiny_gnupg import GnuPG, Network, run, __all__
+

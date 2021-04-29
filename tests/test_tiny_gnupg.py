@@ -2,9 +2,9 @@
 # handling GnuPG ed25519 ECC keys.
 #
 # Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
-# Copyright © 2019-2020 Gonzo Investigatory Journalism Agency, LLC
+# Copyright © 2019-2021 Gonzo Investigative Journalism Agency, LLC
 #             <gonzo.development@protonmail.ch>
-#           © 2019-2020 Richard Machado <rmlibre@riseup.net>
+#           © 2019-2021 Richard Machado <rmlibre@riseup.net>
 # All rights reserved.
 #
 
@@ -29,10 +29,13 @@ from pathlib import Path
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
+
 PACKAGE_PATH = str(Path(__file__).absolute().parent.parent)
 sys.path.append(PACKAGE_PATH)
 
+
 from tiny_gnupg import GnuPG, run
+
 
 legacy_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: OpenPGP.js v4.3.0
@@ -140,18 +143,28 @@ PzNx/ZogrbmOMOWsTCC1DFycAjCRtueMDG83FVl0zdX0fFR5cZnRdxde+Y6oyZ6u
 """
 
 
+_homedir = Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome"
+_options = _homedir / "gpg2.conf"
+_executable = "/usr/bin/gpg2"
+
+
 @pytest.fixture(scope="module")
 def gpg():
     print("setup".center(15, "-"))
+
     username = "testing_user"
     email = "testing_user@testing.testing"
     passphrase = "test_passphrase"
-    relative_gpg_path = str(
-        Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome"
+
+    gpg = GnuPG(
+        email=email,
+        username=username,
+        passphrase=passphrase,
+        homedir=_homedir,
+        options=_options,
+        executable=_executable,
     )
-    gpg = GnuPG(username, email, passphrase)
-    gpg.set_homedir(relative_gpg_path)
-    gpg.reset_daemon()
+
     yield gpg
     print("teardown".center(18, "-"))
 
@@ -172,43 +185,58 @@ def test_instance(gpg):
             gpg.delete(gpg.email)
         except:
             break
-    gpg.set_home_permissions("/ridiculous_root_directory_not_real")
-    # Successfully failed to change permissions on an invalid dir. We
-    # refrain from testing on, or making, a priveleged folder that may
-    # actually exist for safety of the tester reasons.
+    try:
+        gpg._set_homedir_permissions("/ridiculous_root_directory_not_real")
+    except FileNotFoundError:
+        "Successfully failed to change permissions on an invalid dir. "
+        "We refrain from testing on, or making, a priveleged folder "
+        "that may actually exist for safety of the tester reasons."
+    else:
+        raise AssertionError(
+            "The instance was able to change the fake directory's "
+            "permissions."
+        )
+
     gpg.gen_key()
-    test_gpg = GnuPG(gpg.username, gpg.email, gpg.passphrase)
+    test_gpg = GnuPG(
+        email=gpg.user.email,
+        username=gpg.user.username,
+        passphrase=gpg.user.passphrase,
+        homedir=_homedir,
+        options=_options,
+        executable=_executable,
+    )
     test_gpg.gen_key()
-    assert gpg.username == test_gpg.username
-    assert gpg.email == test_gpg.email
-    assert gpg.passphrase == test_gpg.passphrase
+    assert gpg.user.username == test_gpg.user.username
+    assert gpg.user.email == test_gpg.user.email
+    assert gpg.user.passphrase == test_gpg.user.passphrase
     assert gpg.port == test_gpg.port
     assert gpg.tor_port == test_gpg.tor_port
-    assert gpg.home == test_gpg.home
+    assert gpg.homedir == test_gpg.homedir
     assert gpg.executable == test_gpg.executable
     assert gpg._Connector == test_gpg._Connector
     assert gpg._Session == test_gpg._Session
     run(async_method_runner(gpg))
     assert gpg._search_string == test_gpg._search_string
-    assert gpg.keyserver == test_gpg.keyserver
-    assert str(gpg.port) in gpg.keyserver
-    assert gpg.keyserver_export_api == test_gpg.keyserver_export_api
-    assert gpg.keyserver_verify_api == test_gpg.keyserver_verify_api
-    assert gpg.searchserver == test_gpg.searchserver
-    assert gpg.base_command == test_gpg.base_command
-    assert gpg.base_passphrase_command == test_gpg.base_passphrase_command
+    assert gpg._keyserver == test_gpg._keyserver
+    assert str(gpg.port) in gpg._keyserver
+    assert gpg._keyserver_export_api == test_gpg._keyserver_export_api
+    assert gpg._keyserver_verify_api == test_gpg._keyserver_verify_api
+    assert gpg._searchserver == test_gpg._searchserver
+    assert gpg._base_command == test_gpg._base_command
+    assert gpg._base_passphrase_command == test_gpg._base_passphrase_command
     ###
     assert gpg.port == 80
     assert gpg.tor_port == 9050
-    assert ".onion" in gpg.keyserver
-    assert ".onion" in gpg.searchserver
+    assert ".onion" in gpg._keyserver
+    assert ".onion" in gpg._searchserver
     assert len(gpg.fingerprint) == 40
     assert type(gpg.fingerprint) == str
-    assert gpg.home.endswith("gpghome")
-    assert gpg.username == "testing_user"
+    assert gpg.homedir.endswith("gpghome")
+    assert gpg.user.username == "testing_user"
     assert gpg.executable.endswith("gpg2")
-    assert gpg.passphrase == "test_passphrase"
-    assert gpg.email == "testing_user@testing.testing"
+    assert gpg.user.passphrase == "test_passphrase"
+    assert gpg.user.email == "testing_user@testing.testing"
     assert gpg._Session == ClientSession
     assert gpg._Connector == ProxyConnector
     assert gpg.fingerprint in gpg.list_keys()
@@ -232,26 +260,26 @@ def test_encode_inputs(gpg):
 
 def test_command(gpg):
     options = ["--list-keys"]
-    command = gpg.command(*options)
-    passphrase_command = gpg.command(*options, with_passphrase=True)
+    command = gpg.encode_command(*options)
+    passphrase_command = gpg.encode_command(*options, with_passphrase=True)
     for option in options:
         assert option in command
         assert option in passphrase_command
         command.remove(option)
-        assert command == gpg.command()
+        assert command == gpg.encode_command()
         passphrase_command.remove(option)
-        assert passphrase_command == gpg.command(with_passphrase=True)
+        assert passphrase_command == gpg.encode_command(with_passphrase=True)
 
 
 def test_manual_command(gpg):
-    custom_command = gpg.command(manual=True)
-    default_command = gpg.command(manual=False)
+    custom_command = gpg.encode_command(manual=True)
+    default_command = gpg.encode_command(manual=False)
     default_command.remove("--yes")
     default_command.remove("--batch")
     default_command.remove("--no-tty")
     assert custom_command == default_command
-    default_passphrase_command = gpg.command(with_passphrase=True)
-    custom_passphrase_command = gpg.command(
+    default_passphrase_command = gpg.encode_command(with_passphrase=True)
+    custom_passphrase_command = gpg.encode_command(
         with_passphrase=True, manual=True
     )
     assert default_passphrase_command == custom_passphrase_command
@@ -271,7 +299,12 @@ def test_export_import(gpg):
 
 
 def test_isolated_identities(gpg):
-    anon = GnuPG("anon_user", "anonymous@testing.testing", "rubbish_pw")
+    anon = GnuPG(
+        username="anon_user",
+        email="anonymous@testing.testing",
+        passphrase="rubbish_pw",
+        executable=_executable,
+    )
     anon.gen_key()
     anon_uid = anon.fingerprint
     ### decrypting
@@ -328,7 +361,7 @@ def test_cipher(gpg):
     for trust_level in range(0, 7):
         for fingerprint in gpg.list_keys():
             try:
-                gpg.trust(fingerprint, trust_level)
+                gpg.set_key_trust(fingerprint, trust_level)
             except ValueError as invalid_trust_level:
                 # if 1 > int(trust_level) or 5 < int(trust_level):
                 """Successfully blocked invlaid trust level"""
@@ -358,8 +391,12 @@ def test_cipher(gpg):
         signed_message_1 = gpg.sign(signed_message_0)
         try:
             gpg.sign(message, key="Non boolean value")
+            blocked_non_boolean = False
         except:
             """Successfully blocked non-boolean value"""
+            blocked_non_boolean = True
+        else:
+            assert blocked_non_boolean
         gpg.verify(signed_message_0)
         gpg.verify(signed_message_1)
     ###
@@ -378,14 +415,20 @@ def test_cipher(gpg):
     username = "test_sender"
     email = "test_sender@testing.testing"
     passphrase = "test_sender_passphrase"
-    sender = GnuPG(username, email, passphrase)
+
+    sender = GnuPG(
+        email=email,
+        username=username,
+        passphrase=passphrase,
+        executable=_executable,
+    )
     sender.gen_key()
     sender_key = sender.list_keys(sender.fingerprint)
     sender_pkey = sender.text_export(sender.fingerprint)
     sender_skey = sender.text_export(sender.fingerprint, secret=True)
     msg = sender.encrypt("testing", gpg.fingerprint)
     sender.delete(sender.fingerprint)
-    sender.reset_daemon()
+    sender._reset_daemon()
     try:
         failed = False
         gpg.decrypt(msg)
@@ -406,11 +449,11 @@ def test_cipher(gpg):
 
 
 def test_file_io(gpg):
-    path = Path(gpg.home).absolute()
+    path = Path(gpg.homedir).absolute()
     file_path = str(path / f"{gpg.fingerprint}.asc")
     key = gpg.text_export(gpg.fingerprint)
-    run(gpg.file_export(path, gpg.fingerprint))
-    run(gpg.file_import(file_path))
+    gpg.file_export(path, gpg.fingerprint)
+    gpg.file_import(file_path)
     Path(file_path).unlink()
 
 
@@ -427,7 +470,7 @@ def test_networking(gpg):
     assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
     assert dev_fingerprint == fingerprint
-    assert fingerprint == pop(gpg.list_keys(dev_fingerprint))
+    assert fingerprint in gpg.list_keys(dev_fingerprint)
     email = gpg.key_email(fingerprint)
     assert dev_email == email
     assert email == gpg.list_keys(dev_email)[fingerprint]
@@ -473,26 +516,6 @@ def test_networking(gpg):
         """Successfully failed to retrieve data for bogus query"""
 
 
-def test_sks_import(gpg):
-    run(
-        gpg.network_sks_import(
-            uid="9D324A9225AA3A80A800F6FAA7416F0D195063B8"
-        )
-    )
-    try:
-        failed = False
-        run(
-            gpg.network_sks_import(
-                uid="Howard Zinn's A People's History of USA."
-            )
-        )
-    except FileNotFoundError:
-        failed = True
-        """Successfully failed to retreive key from invalid uid"""
-    finally:
-        assert failed
-
-
 def test_network_concurrency(gpg):
     async def gather_looper(gpg, uid):
         tasks = await looper(gpg, uid)
@@ -510,20 +533,17 @@ def test_network_concurrency(gpg):
     assert url.strip()
     for link in urls:
         assert url == link
-    urls = run(gather_looper(gpg, uid))
-    for link in urls:
-        assert url == link
 
 
 def test_key_signing(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
-    command = gpg.command("--check-sigs")
+    command = gpg.encode_command("--check-sigs")
     keyring = gpg.read_output(command)
     gpg.sign(dev_fingerprint, key=True)
-    signed_keying = gpg.read_output(command)
-    assert keyring != signed_keying
-    condensed_keyring = signed_keying.replace(" ", "")
+    signed_keyring = gpg.read_output(command)
+    assert keyring != signed_keyring
+    condensed_keyring = signed_keyring.replace(" ", "")
     fingerprint = gpg.fingerprint[-16:]
     assert f"<{dev_email}>\nsig!0x{fingerprint}" in condensed_keyring
 
@@ -534,14 +554,14 @@ def test_packet_parsing(gpg):
     encrypted_message = gpg.encrypt("test", gpg.fingerprint, sign=False)
     gpg_key = gpg.text_export(gpg.fingerprint)
     ###
-    signature_fingerprint = gpg.packet_fingerprint(signature)
-    signed_encrypted_message_fingerprint = gpg.packet_fingerprint(
+    signature_fingerprint = gpg._packet_fingerprint(signature)
+    signed_encrypted_message_fingerprint = gpg._packet_fingerprint(
         signed_encrypted_message
     )
-    encrypted_message_fingerprint = gpg.packet_fingerprint(
+    encrypted_message_fingerprint = gpg._packet_fingerprint(
         encrypted_message
     )
-    gpg_key_fingerprint = gpg.packet_fingerprint(gpg_key)
+    gpg_key_fingerprint = gpg._packet_fingerprint(gpg_key)
     ###
     key = gpg.list_keys(gpg.fingerprint)
     key_from_signature = gpg.list_keys(signature_fingerprint)
@@ -578,11 +598,11 @@ def test_auto_fetch_methods(gpg):
     gpg.text_import(legacy_key)
     assert msg == message
     ###
-    packets_0 = gpg.list_packets(dev_signed_encrypted_message)
-    packets_1 = gpg.list_packets(dev_encrypted_message)
-    packets_2 = gpg.list_packets(dev_signed_message)
-    packets_3 = gpg.list_packets(legacy_key)
-    packets_4 = gpg.list_packets(dev_key)
+    packets_0 = gpg._list_packets(dev_signed_encrypted_message)
+    packets_1 = gpg._list_packets(dev_encrypted_message)
+    packets_2 = gpg._list_packets(dev_signed_message)
+    packets_3 = gpg._list_packets(legacy_key)
+    packets_4 = gpg._list_packets(dev_key)
     assert type(packets_0) == list
     assert type(packets_1) == list
     assert type(packets_2) == list
@@ -594,15 +614,15 @@ def test_auto_fetch_methods(gpg):
     assert len(packets_3) == 28
     assert len(packets_4) == 31
     try:
-        gpg.list_packets(20 * "Non-OpenPGP data")
+        gpg._list_packets(20 * "Non-OpenPGP data")
     except:
         """Successfully failed when invalid data sent for parsing"""
     ###
-    fingerprint_0 = gpg.packet_fingerprint(dev_signed_encrypted_message)
-    fingerprint_1 = gpg.packet_fingerprint(dev_encrypted_message)
-    fingerprint_2 = gpg.packet_fingerprint(dev_signed_message)
-    fingerprint_3 = gpg.packet_fingerprint(legacy_key)
-    fingerprint_4 = gpg.packet_fingerprint(dev_key)
+    fingerprint_0 = gpg._packet_fingerprint(dev_signed_encrypted_message)
+    fingerprint_1 = gpg._packet_fingerprint(dev_encrypted_message)
+    fingerprint_2 = gpg._packet_fingerprint(dev_signed_message)
+    fingerprint_3 = gpg._packet_fingerprint(legacy_key)
+    fingerprint_4 = gpg._packet_fingerprint(dev_key)
     fingerprint_0_key = gpg.list_keys(fingerprint_0)
     fingerprint_1_key = gpg.list_keys(fingerprint_1)
     fingerprint_2_key = gpg.list_keys(fingerprint_2)
@@ -649,7 +669,7 @@ def test_auto_fetch_methods(gpg):
 
 
 def test_revoke(gpg):
-    raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
+    raw_list_keys = gpg._raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" not in raw_list_keys
     try:
         failed = False
@@ -660,7 +680,7 @@ def test_revoke(gpg):
         assert failed  # GnuPG bug #T4393
         # this should not fail when the bug is resolved
     gpg.revoke(gpg.fingerprint)
-    raw_list_keys = gpg.raw_list_keys(gpg.fingerprint).replace(" ", "")
+    raw_list_keys = gpg._raw_list_keys(gpg.fingerprint).replace(" ", "")
     assert "[revoked]" in raw_list_keys
     run(gpg.network_export(gpg.fingerprint))
     try:
@@ -677,9 +697,11 @@ def test_revoke(gpg):
 def test_delete(gpg):
     amount_of_test_keys = 0
     email = "testing_user@testing.testing"
+    support_email = "support@keys.openpgp.org"
     dev_email = "gonzo.development@protonmail.ch"
+    another_uid = "4826A9293FB8DF4765192455CDD760B5E60DB4F8"
     for key_email in gpg.list_keys().values():
-        if key_email == email:
+        if key_email in {email, dev_email, support_email, another_uid}:
             amount_of_test_keys += 1
     gpg.delete(gpg.fingerprint)
     amount_of_test_keys_after_delete = 0
@@ -709,4 +731,5 @@ def test_delete(gpg):
 
 
 def test_reset_daemon(gpg):
-    gpg.reset_daemon()
+    gpg._reset_daemon()
+

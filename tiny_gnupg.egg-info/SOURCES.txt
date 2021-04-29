@@ -6,7 +6,6 @@ PREADME.rst
 README.rst
 setup.cfg
 setup.py
-licenses/aiofiles_LICENSE.txt
 licenses/aiohttp_LICENSE.txt
 licenses/aiohttp_socks_LICENSE.txt
 licenses/asyncio_contextmanager_LICENSE.txt
@@ -22,5 +21,4 @@ tiny_gnupg.egg-info/SOURCES.txt
 tiny_gnupg.egg-info/dependency_links.txt
 tiny_gnupg.egg-info/requires.txt
 tiny_gnupg.egg-info/top_level.txt
-tiny_gnupg/gpghome/gpg2
 tiny_gnupg/gpghome/gpg2.conf

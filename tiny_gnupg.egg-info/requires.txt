@@ -1,4 +1,3 @@
 aiohttp
-aiofiles
 aiohttp_socks
 asyncio_contextmanager

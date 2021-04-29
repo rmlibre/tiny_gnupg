@@ -1,12 +1,14 @@
 recursive-include licenses *
 include LICENSE
-include .gitignore
 include README.rst
 include PREADME.rst
 include CHANGES.rst
+include MANIFEST.in
+include setup.py
+include setup.cfg
+include .gitignore
 include tiny_gnupg/__init__.py
 include tiny_gnupg/tiny_gnupg.py
-include tiny_gnupg/gpghome/gpg2
 include tiny_gnupg/gpghome/gpg2.conf
 include tests/coverage.svg
 include tests/test_tiny_gnupg.py
@@ -20,3 +22,4 @@ recursive-exclude tests/htmlcov *
 recursive-exclude tiny_gnupg/gpghome/crls.d *
 recursive-exclude tiny_gnupg/gpghome/openpgp-revocs.d *
 recursive-exclude tiny_gnupg/gpghome/private-keys-v1.d *
+
