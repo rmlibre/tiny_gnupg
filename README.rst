@@ -106,7 +106,7 @@ Usage Example
     
     # encode_inputs -> 
     
-    inputs = gpg.encode_inputs(passphrase, *other_inputs) 
+    inputs = gpg.encode_inputs(gpg.user.passphrase, *other_inputs) 
 
 
     # The list of keys in the package's environment can be accessed 
@@ -574,6 +574,58 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
 ``Changelog`` 
 ============= 
+
+
+Changes for version 0.7.4 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  The ``homedir``, ``options``, ``executable``, ``_base_command``, 
+   & ``_base_passphrase_command`` attributes are now all properties. This 
+   makes keeping their values in-sync even after a user changes a ``GnuPG`` 
+   instance's configurations. This also backtracks the last update's 
+   solution of reseting static values after every mutation, to a 
+   solution which reads attributes live as they're queried. 
+-  Reordering of the methods in the ``GnuPG`` class to better follow a 
+   low-level to high-level overall semantic structure, with positional 
+   groupings of methods with related functionalities. 
+-  Some other code refactorings, cleanups & docstring fixes. 
+
+
+
+
+Changes for version 0.7.3 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Now, after either the paths for the executable, homedir or config 
+   file are changed by the user, the ``_base_command`` & 
+   ``_base_password_command`` string attributes are reset to mirror those 
+   changes. This keeps the  instance's state coherent & updated 
+   correctly. 
+
+
+
+
+Changes for version 0.7.2 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Changed the default directory for the gpg executable to ``/usr/bin/gpg2``. 
+   This isn't going to be appropriate for all users' systems. But, now 
+   many users on linux installations won't need to pass in a path 
+   manually to get the package to work. 
+
+
 
 
 Changes for version 0.7.1 

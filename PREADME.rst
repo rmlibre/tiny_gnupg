@@ -106,7 +106,7 @@ Usage Example
     
     # encode_inputs -> 
     
-    inputs = gpg.encode_inputs(passphrase, *other_inputs) 
+    inputs = gpg.encode_inputs(gpg.user.passphrase, *other_inputs) 
 
 
     # The list of keys in the package's environment can be accessed 

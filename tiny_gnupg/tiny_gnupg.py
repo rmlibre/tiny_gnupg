@@ -115,7 +115,7 @@ class Network:
 
 class GnuPG:
     """
-    GnuPG - A linux specific, small, simple & intuitive wrapper for
+    GnuPG - A linux-specific, small, simple & intuitive wrapper for
     creating, using and managing GnuPG's Ed25519 curve keys. This class
     favors reducing code size & complexity with strong, bias defaults
     over flexibility in the api. It's designed to turn the complex,
@@ -129,6 +129,15 @@ class GnuPG:
         passphrase="YesAllBeautifulCats",
         executable="/usr/bin/gpg2",
     )
+    gpg.gen_key()
+    assert gpg.fingerprint in gpg.list_keys()
+    run(gpg.network_export(gpg.fingerprint))
+
+    message = "Henlo fren!"
+    uid = "my.friends@email.address"
+
+    assert run(gpg.search(uid))
+    encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
     """
     _HOME_DIR = Path(__file__).absolute().parent / "gpghome"
     _OPTIONS_PATH = _HOME_DIR / "gpg2.conf"
@@ -149,12 +158,12 @@ class GnuPG:
         Initialize an instance intended to create, manage, or represent
         a single key in the local package gnupg keyring.
         """
+        self._torify = bool(torify)
         self.set_homedir(homedir)
         self.set_options(options)
         self.set_executable(executable)
         self._reset_daemon()
         self.user = User(username, email, passphrase=passphrase)
-        self._set_base_command(torify)
         self._set_fingerprint(email)
         self._set_network_variables()
 
@@ -187,9 +196,7 @@ class GnuPG:
         """
         path = Path(path).absolute() if path else self._HOME_DIR
         self._homedir = path
-        self.homedir = str(path)
         self._set_homedir_permissions()
-        self._reset_base_command()
 
     def set_options(self, path=None):
         """
@@ -197,8 +204,6 @@ class GnuPG:
         """
         path = Path(path).absolute() if path else self._OPTIONS_PATH
         self._options = path
-        self.options = str(path)
-        self._reset_base_command()
 
     def set_executable(self, path=None):
         """
@@ -206,15 +211,35 @@ class GnuPG:
         """
         path = Path(path).absolute() if path else self._EXECUTABLE_PATH
         self._executable = path
-        self.executable = str(path)
-        self._reset_base_command()
 
-    def _set_base_command(self, torify=False):
+    @property
+    def homedir(self):
         """
-        Construct the default commands used to call gnupg2.
+        Returns the string home directory where gpg2 data is saved.
         """
-        torify = ["torify"] if torify else []
-        self._base_command = torify + [
+        return str(self._homedir)
+
+    @property
+    def options(self):
+        """
+        Returns the string path to the gpg2 config file.
+        """
+        return str(self._options)
+
+    @property
+    def executable(self):
+        """
+        Returns the string path to the gpg2 executable binary.
+        """
+        return str(self._executable)
+
+    @property
+    def _base_command(self):
+        """
+        Construct the default command used to call gnupg2.
+        """
+        torify = ["torify"] if self._torify else []
+        return torify + [
             self.executable,
             "--yes",
             "--batch",
@@ -225,23 +250,19 @@ class GnuPG:
             "--homedir",
             self.homedir,
         ]
-        self._base_passphrase_command = self._base_command + [
+
+    @property
+    def _base_passphrase_command(self):
+        """
+        Construct the default command used to call gnupg2 when a user's
+        passphrase is needed.
+        """
+        return self._base_command + [
             "--pinentry-mode",
             "loopback",
             "--passphrase-fd",
             "0",
         ]
-
-    def _reset_base_command(self):
-        """
-        If a user changes the instance's paths to resources stored on
-        the filesystem after initialization, then this method is called
-        to reset the instance's base command to incorporate those
-        changes.
-        """
-        if hasattr(self, "_base_command"):
-            torify = True if "torify" in self._base_command else False
-            self._set_base_command(torify=torify)
 
     def _set_fingerprint(self, uid=""):
         """
@@ -296,7 +317,27 @@ class GnuPG:
         """
         Autoconstruct specific keyserver search URL.
         """
-        return f"{self._keyserver}{self._search_prefix}"
+        return self._keyserver + self._search_prefix
+
+    async def _raw_search(self, query=""):
+        """
+        Returns HTML of keyserver key search matching ``query`` uid.
+        """
+        url = f"{self._searchserver}{query}"
+        print(f"querying: {url}")
+        return await self.network.get(url)
+
+    async def search(self, query=""):
+        """
+        Returns keyserver URL of the key found from ``query`` uid.
+        """
+        query = query.replace("@", "%40").replace(" ", "%20")
+        response = await self._raw_search(query)
+        if "We found an entry" not in response:
+            return ""
+        url_part = self._keyserver_host
+        url_part = response[response.find(f"{url_part}") :]
+        return url_part[: url_part.find('>') - 1]
 
     def encode_command(
         self, *options, with_passphrase=False, manual=False
@@ -309,7 +350,7 @@ class GnuPG:
         elif not manual:
             return self._base_command + [*options]
         else:
-            cmd = self._base_command.copy() + [*options]
+            cmd = self._base_command + [*options]
             cmd.remove("--yes")
             cmd.remove("--batch")
             cmd.remove("--no-tty")
@@ -349,41 +390,17 @@ class GnuPG:
             print(warning.output)
             raise warning if "Bad passphrase" in warning.output else error
 
-    def gen_key(self):
+    def _reset_daemon(self):
         """
-        Generates a set of ed25519 keys with isolated roles:
-        Main Key    - Certification
-            Subkey  - Signing
-            Subkey  - Authentication
-            Subkey  - Encryption
+        Resets the gpg-agent daemon.
         """
-        command = self.encode_command(
-            "--expert",
-            "--full-gen-key",
-            "--with-colons",
-            "--command-fd",
-            "0",
-            "--status-fd",
-            "1",
-            with_passphrase=True,
-        )
-        command.remove("--batch")
-        inputs = self.encode_inputs(
-            self.user.passphrase,
-            "11",
-            "S",
-            "Q",
-            "1",
-            "3y",
-            "y",
-            self.user.username,
-            self.user.email,
-            "",
-            "O",
-        )
-        output = self.read_output(command, inputs, stderr=STDOUT)
-        self.fingerprint = output.strip().split("\n")[-1][-40:]
-        self._add_subkeys(self.fingerprint)
+        command = [
+            "gpgconf", "--homedir", self.homedir, "--kill", "gpg-agent"
+        ]
+        kill_output = self.read_output(command)
+        command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
+        reset_output = self.read_output(command)
+        return kill_output, reset_output
 
     def _add_subkeys(self, uid=""):
         """
@@ -421,6 +438,42 @@ class GnuPG:
             "save",
         )
         self.read_output(command, inputs, stderr=STDOUT)
+
+    def gen_key(self):
+        """
+        Generates a set of ed25519 keys with isolated roles:
+        Main Key    - Certification
+            Subkey  - Signing
+            Subkey  - Authentication
+            Subkey  - Encryption
+        """
+        command = self.encode_command(
+            "--expert",
+            "--full-gen-key",
+            "--with-colons",
+            "--command-fd",
+            "0",
+            "--status-fd",
+            "1",
+            with_passphrase=True,
+        )
+        command.remove("--batch")
+        inputs = self.encode_inputs(
+            self.user.passphrase,
+            "11",
+            "S",
+            "Q",
+            "1",
+            "3y",
+            "y",
+            self.user.username,
+            self.user.email,
+            "",
+            "O",
+        )
+        output = self.read_output(command, inputs, stderr=STDOUT)
+        self.fingerprint = output.strip().split("\n")[-1][-40:]
+        self._add_subkeys(self.fingerprint)
 
     def delete(self, uid=""):
         """
@@ -460,20 +513,6 @@ class GnuPG:
         self.text_import(revoke_cert)
         return self.text_export(uid)
 
-    def set_key_trust(self, uid="", level=5):
-        """
-        Sets trust ``level`` to key matching ``uid`` in the keyring.
-        """
-        uid = self.key_fingerprint(uid)
-        level = str(int(level))
-        if not 1 <= int(level) <= 5:
-            raise ValueError("Trust levels must be between 1 and 5.")
-        command = self.encode_command(
-            "--edit-key", "--command-fd", "0", uid
-        )
-        inputs = self.encode_inputs("trust", level, "y", "save")
-        return self.read_output(command, inputs)
-
     def _raw_packets(self, target=""):
         """
         Returns OpenPGP metadata from ``target`` in raw string format.
@@ -500,7 +539,7 @@ class GnuPG:
         Returns OpenPGP metadata from ``target`` in list format.
         """
         try:
-            packets = self._raw_packets(target).split("\n\t")
+            packets = self._raw_packets(target).strip().split("\n\t")
         except KeyError as warning:
             packets = warning.value.split("\n\t")
         except CalledProcessError as warning:
@@ -509,10 +548,7 @@ class GnuPG:
             error.value = target
             error.output = warning.output
             raise error
-        listed_packets = []
-        for packet in packets:
-            listed_packets.append(packet.strip().split("\n"))
-        return listed_packets
+        return [packet.strip().split("\n") for packet in packets]
 
     def _packet_fingerprint(self, target=""):
         """
@@ -539,6 +575,95 @@ class GnuPG:
         for packet in packets.split("\n\t"):
             if sentinel in packet:
                 return packet[size]
+
+    def _raw_list_keys(self, uid="", secret=False):
+        """
+        Returns the terminal output of the --list-keys ``uid`` option.
+        """
+        secret = "secret-" if secret == True else ""
+        if uid:
+            command = self.encode_command(f"--list-{secret}keys", uid)
+        else:
+            command = self.encode_command(f"--list-{secret}keys")
+        try:
+            return self.read_output(command)
+        except CalledProcessError:
+            notice = f"UID '{uid}' not in package {secret}keyring"
+            warning = LookupError(notice)
+            warning.value = uid
+            raise warning
+
+    def _format_list_keys(self, raw_list_keys_terminal_output, secret):
+        """
+        Returns a dict of fingerprints & email addresses scraped from
+        the terminal output of the --list-keys option.
+        """
+        sentinel = "sec" if secret == True else "pub"
+        keys = raw_list_keys_terminal_output.split(f"\n{sentinel} ")
+        fingerprints = [
+            part[part.find("\nuid") - 40 : part.find("\nuid")]
+            for part in keys
+            if "\nuid" in part
+        ]
+        emails = [
+            self.key_email(fingerprint) for fingerprint in fingerprints
+        ]
+        return dict(zip(fingerprints, emails))
+
+    def list_keys(self, uid="", *, secret=False):
+        """
+        Returns a dict of fingerprints & email addresses of all keys in
+        the local keyring, or optionally the key matching ``uid``.
+        """
+        return self._format_list_keys(
+            self._raw_list_keys(uid, secret), secret
+        )
+
+    def key_email(self, uid=""):
+        """
+        Returns the email address on the key matching ``uid``.
+        """
+        if len(uid) < 4:
+            raise ValueError("No ``uid`` was specified.")
+        parts = self._raw_list_keys(uid).replace(" ", "")
+        for part in parts.split("\nuid"):
+            if "@" in part and "]" in part:
+                part = part[part.find("]") + 1 :]
+                if "<" in part and ">" in part:
+                    part = part[part.find("<") + 1 : part.find(">")]
+                return part
+
+    def key_fingerprint(self, uid=""):
+        """
+        Returns the fingerprint on the key matching ``uid``.
+        """
+        if len(uid) < 4:
+            raise ValueError("No ``uid`` was specified.")
+        return next(iter(self.list_keys(uid)))
+
+    def key_trust(self, uid=""):
+        """
+        Returns the current trust level on the key matching ``uid``.
+        """
+        if len(uid) < 4:
+            raise ValueError("No ``uid`` was specified.")
+        key = self._raw_list_keys(uid).replace(" ", "")
+        trust = key[key.find("\nuid[") + 5 :]
+        return trust[: trust.find("]")]
+
+    def set_key_trust(self, uid="", level=5):
+        """
+        Sets trust ``level`` to key matching ``uid`` in the keyring.
+        """
+        uid = self.key_fingerprint(uid)
+        level = int(level)
+        if 1 > level or level > 5:
+            raise ValueError("Trust levels must be between 1 and 5.")
+        command = self.encode_command(
+            "--edit-key", "--command-fd", "0", uid
+        )
+        inputs = self.encode_inputs("trust", str(level), "y", "save")
+        return self.read_output(command, inputs)
 
     def encrypt(self, message="", uid="", sign=True, local_user=""):
         """
@@ -669,113 +794,6 @@ class GnuPG:
         except LookupError as fingerprint:
             await self.network_import(fingerprint.value)
             return self.verify(message)
-
-    def _raw_list_keys(self, uid="", secret=False):
-        """
-        Returns the terminal output of the --list-keys ``uid`` option.
-        """
-        secret = "secret-" if secret == True else ""
-        if uid:
-            command = self.encode_command(f"--list-{secret}keys", uid)
-        else:
-            command = self.encode_command(f"--list-{secret}keys")
-        try:
-            return self.read_output(command)
-        except CalledProcessError:
-            notice = f"UID '{uid}' not in package {secret}keyring"
-            warning = LookupError(notice)
-            warning.value = uid
-            raise warning
-
-    def _format_list_keys(self, raw_list_keys_terminal_output, secret):
-        """
-        Returns a dict of fingerprints & email addresses scraped from
-        the terminal output of the --list-keys option.
-        """
-        sentinel = "sec" if secret == True else "pub"
-        keys = raw_list_keys_terminal_output.split(f"\n{sentinel} ")
-        fingerprints = [
-            part[part.find("\nuid") - 40 : part.find("\nuid")]
-            for part in keys
-            if "\nuid" in part
-        ]
-        emails = [
-            self.key_email(fingerprint) for fingerprint in fingerprints
-        ]
-        return dict(zip(fingerprints, emails))
-
-    def list_keys(self, uid="", *, secret=False):
-        """
-        Returns a dict of fingerprints & email addresses of all keys in
-        the local keyring, or optionally the key matching ``uid``.
-        """
-        return self._format_list_keys(
-            self._raw_list_keys(uid, secret), secret
-        )
-
-    def key_email(self, uid=""):
-        """
-        Returns the email address on the key matching ``uid``.
-        """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
-        parts = self._raw_list_keys(uid).replace(" ", "")
-        for part in parts.split("\nuid"):
-            if "@" in part and "]" in part:
-                part = part[part.find("]") + 1 :]
-                if "<" in part and ">" in part:
-                    part = part[part.find("<") + 1 : part.find(">")]
-                return part
-
-    def key_fingerprint(self, uid=""):
-        """
-        Returns the fingerprint on the key matching ``uid``.
-        """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
-        return next(iter(self.list_keys(uid)))
-
-    def key_trust(self, uid=""):
-        """
-        Returns the current trust level on the key matching ``uid``.
-        """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
-        key = self._raw_list_keys(uid).replace(" ", "")
-        trust = key[key.find("\nuid[") + 5 :]
-        return trust[: trust.find("]")]
-
-    def _reset_daemon(self):
-        """
-        Resets the gpg-agent daemon.
-        """
-        command = [
-            "gpgconf", "--homedir", self.homedir, "--kill", "gpg-agent"
-        ]
-        kill_output = self.read_output(command)
-        command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
-        reset_output = self.read_output(command)
-        return kill_output, reset_output
-
-    async def _raw_search(self, query=""):
-        """
-        Returns HTML of keyserver key search matching ``query`` uid.
-        """
-        url = f"{self._searchserver}{query}"
-        print(f"querying: {url}")
-        return await self.network.get(url)
-
-    async def search(self, query=""):
-        """
-        Returns keyserver URL of the key found from ``query`` uid.
-        """
-        query = query.replace("@", "%40").replace(" ", "%20")
-        response = await self._raw_search(query)
-        if "We found an entry" not in response:
-            return ""
-        url_part = self._keyserver_host
-        url_part = response[response.find(f"{url_part}") :]
-        return url_part[: url_part.find('>') - 1]
 
     async def network_import(self, uid=""):
         """
