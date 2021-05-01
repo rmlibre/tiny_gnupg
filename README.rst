@@ -493,9 +493,11 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     key = gpg.text_export(gpg.fingerprint)  # <--  Distribute this! 
 
 
-    # Uploading the revoked key will let others know the key has been 
+    # Uploading the revoked key will only strip the user ID information 
 
-    # retired. This cannot be undone -> 
+    # from the key on the keyserver. It won't explicitly let others know 
+
+    # the key has been retired. However, this action cannot be undone -> 
 
     run(gpg.network_export(gpg.fingerprint)) 
     
