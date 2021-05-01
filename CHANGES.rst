@@ -61,6 +61,34 @@
 ============= 
 
 
+Changes for version 0.7.5 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  New ``Terminal``, ``MessageBus`` & ``Error`` classes were created to 
+   assist in some heavy refactorings of the codebase. Separating error 
+   handling logic & sending commands to the terminal into their own 
+   classes & methods. 
+
+
+Minor Changes 
+------------- 
+
+-  Removed the ``import-drop-uids`` option from the package's import 
+   commands for several reasons. First, this option doesn't work on most 
+   systems. Second, if it did work, the result would be problematic, as 
+   that would mean all uid information would always be dropped from 
+   imported keys. This option was intended to keep GnuPG from crashing 
+   when importing keys which don't have uid information, but it's an 
+   unideal hack around the root problem. 
+-  Some changes to signatures for a better ux, & various code cleanups. 
+
+
+
+
 Changes for version 0.7.4 
 ========================= 
 
