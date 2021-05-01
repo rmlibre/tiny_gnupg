@@ -66,7 +66,7 @@ class Network:
         self.tor_port = tor_port
 
     def Connector(
-        self, *, proxy_type=None, host=None, port=None, rdns=True
+        self, *, proxy_type=None, host=None, port=None, rdns=True, **kw
     ):
         """
         Autoconstruct an aiohttp_socks.ProxyConnector instance.
@@ -76,6 +76,7 @@ class Network:
             host=host if host else "localhost",
             port=port if port else self.tor_port,
             rdns=rdns,
+            **kw,
         )
 
     def Session(self, *, connector=None, **kw):
@@ -698,9 +699,9 @@ class GnuPG:
         command = [
             "gpgconf", "--homedir", self.homedir, "--kill", "gpg-agent"
         ]
-        kill_output = self.read_output(command)
+        kill_output = Terminal.enter(command)
         command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
-        reset_output = self.read_output(command)
+        reset_output = Terminal.enter(command)
         return kill_output, reset_output
 
     def _add_subkeys(self, uid=""):
@@ -772,7 +773,7 @@ class GnuPG:
             "",
             "O",
         )
-        output = self.read_output(command, inputs, stderr=STDOUT)
+        output = Terminal.enter(command, inputs, stderr=STDOUT)
         self.fingerprint = output.strip().split("\n")[-1][-40:]
         self._add_subkeys(self.fingerprint)
 
@@ -1175,7 +1176,7 @@ class GnuPG:
             return self.read_output(command, inputs)
         elif secret == False:
             command = self.encode_command("-a", "--export", uid)
-            return self.read_output(command)
+            return Terminal.enter(command)
         else:
             raise TypeError(f"``secret`` != bool, {type(secret)} given.")
 
