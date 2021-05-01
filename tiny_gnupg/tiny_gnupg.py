@@ -988,7 +988,7 @@ class GnuPG:
         except LookupError as uid:
             await self.network_import(uid.value)
             return self.encrypt(
-                message, uid, sign=sign, local_user=local_user
+                message, uid.value, sign=sign, local_user=local_user
             )
 
     def decrypt(self, message="", *, local_user=None):
