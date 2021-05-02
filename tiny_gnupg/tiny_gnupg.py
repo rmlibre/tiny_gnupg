@@ -727,20 +727,22 @@ class GnuPG:
         """
         return self._keyserver + self._search_prefix
 
-    async def _raw_search(self, query):
+    async def _raw_search(self, uid):
         """
-        Returns HTML of keyserver key search matching ``query`` uid.
+        Returns HTML of keyserver key search matching ``uid``.
         """
-        url = self._searchserver + query
+        if len(uid) < self._MINIMUM_UID_LENGTH:
+            raise Issue.inadequate_length_uid_was_given()
+        uid = uid.replace("@", "%40").replace(" ", "%20")
+        url = self._searchserver + uid
         print(f"querying: {url}")
         return await self.network.get(url)
 
-    async def search(self, query):
+    async def search(self, uid):
         """
-        Returns keyserver URL of the key found from ``query`` uid.
+        Returns keyserver URL of the key found from ``uid``.
         """
-        query = query.replace("@", "%40").replace(" ", "%20")
-        response = await self._raw_search(query)
+        response = await self._raw_search(uid)
         if "We found an entry" not in response:
             return ""
         url_part = self._keyserver_host
@@ -1020,8 +1022,8 @@ class GnuPG:
 
     def revoke(self, uid=""):
         """
-        Generates & imports revocation cert for key matching ``uid``,
-        returns the revoked key.
+        Generates & imports a revocation cert for key matching ``uid``
+        then returns the revoked key.
         """
         uid = self.key_fingerprint(uid)
         command = self.encode_command(
@@ -1031,8 +1033,8 @@ class GnuPG:
         inputs = self.encode_inputs(
             self.user.passphrase, "y", "0", " ", "y"
         )
-        revoke_cert = self.read_output(command, inputs)
-        self.text_import(revoke_cert)
+        revocation_cert = self.read_output(command, inputs)
+        self.text_import(revocation_cert)
         return self.text_export(uid)
 
     def encrypt(self, message="", uid="", *, sign=True, local_user=""):
