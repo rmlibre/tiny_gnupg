@@ -578,6 +578,26 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 ============= 
 
 
+Changes for version 0.7.6 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  Added the new ``Issue`` class. It takes care of raising exceptions 
+   & giving error messages to the user for issues which aren't caused 
+   by calling the gpg2 binary. This comes with some refactorings. 
+
+
+Minor Changes 
+------------- 
+
+-  Various code cleanups & refactorings. 
+
+
+
+
 Changes for version 0.7.5 
 ========================= 
 

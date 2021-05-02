@@ -10,13 +10,13 @@
 
 
 __all__ = [
-    "__all__",
     "GnuPG",
     "User",
     "Network",
     "Terminal",
     "MessageBus",
     "Error",
+    "Issue",
     "run",
 ]
 
@@ -194,13 +194,14 @@ class Terminal:
         return
 
     @staticmethod
-    def enter(command=(), inputs=b"", **kw):
+    def enter(command=(), inputs=b"", *, decode=True, **kw):
         """
         Quotes terminal escape characters & runs user commands.
         """
-        return check_output(
+        result = check_output(
             [quote(part) for part in command], input=inputs, **kw
-        ).decode()
+        )
+        return result.decode() if decode else result
 
     def __init__(self, *, if_exception=None, finally_run=None):
         """
@@ -247,32 +248,22 @@ class Error:
         "Passphrase wrong, inexistent key, or invalid rights to access "
         "secret key."
     )
-    _KEY_ISNT_IMPORTABLE = (
-        "_UID_ key isn't importable. See https://dev.gnupg.org/T4393"
-    )
     _PACKETS_PROTECTED_BY_SECRET_KEY = (
-        "Can't decrypt all packets without secret key."
+        "Can't decrypt all packets without the corresponding secret key."
     )
     _INVALID_TARGET_OPENPGP_DATA = (
-        "``target`` doesn't seem to be valid OpenPGP data."
+        "The ``target`` doesn't seem to be valid OpenPGP data."
     )
     _KEY_WITH_UID_NOT_IN_KEYRING = (
-        "UID '_UID_' is not in package _SECRET_keyring"
+        "UID '_UID_' isn't in instance's _SECRET_keyring"
     )
-    _SIGNATURES_PUBLIC_KEY_ISNT_IN_LOCAL_KEYRING = (
-        f"UID '_UID_' not in the instance's keyring."
+    _SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING = (
+        "UID '_UID_' isn't the instance's keyring."
+    )
+    _KEY_ISNT_IMPORTABLE = (
+        "The _UID_ key isn't importable. See https://dev.gnupg.org/T4393"
     )
     _MESSAGE_IS_UNVERIFIABLE = "``message`` is unverifiable."
-
-    @classmethod
-    def _key_isnt_importable(cls, uid):
-        """
-        Inserts the uid of key causing the error into a static string
-        that is reported to the user.
-        """
-        return (
-            cls._KEY_ISNT_IMPORTABLE.replace("_UID_", uid)
-        )
 
     @classmethod
     def _key_with_uid_not_in_keyring(cls, uid, secret):
@@ -289,15 +280,23 @@ class Error:
         )
 
     @classmethod
-    def _signatures_public_key_isnt_in_local_keyring(cls, uid):
+    def _signatures_public_key_isnt_in_keyring(cls, uid):
         """
         Inserts the uid of key causing the error into a static string
         that is reported to the user.
         """
         return (
-            cls._SIGNATURES_PUBLIC_KEY_ISNT_IN_LOCAL_KEYRING
+            cls._SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING
             .replace("_UID_", uid)
         )
+
+    @classmethod
+    def _key_isnt_importable(cls, uid):
+        """
+        Inserts the uid of key causing the error into a static string
+        that is reported to the user.
+        """
+        return cls._KEY_ISNT_IMPORTABLE.replace("_UID_", uid)
 
     @staticmethod
     def _raise_unexpected_error(error):
@@ -398,7 +397,7 @@ class Error:
             uid = [line[-40:] for line in error_lines if sentinel in line]
             uid = uid[-1] if uid else bus.fingerprint
             warning = LookupError(
-                cls._signatures_public_key_isnt_in_local_keyring(uid)
+                cls._signatures_public_key_isnt_in_keyring(uid)
                 if uid not in bus.keys()
                 else cls._BAD_PASSPHRASE_OR_KEY
             )
@@ -433,6 +432,102 @@ class Error:
         raise warning if "no user ID" in warning.output else error
 
 
+class Issue:
+    """
+    This type helps improve readability & concern separation within the
+    GnuPG class when general issues are encountered.
+    """
+    _HOME_DIRECTORY_DOESNT_EXIST = (
+        "The specified home directory doesn't exist, which is going to "
+        "be a problem."
+    )
+    _KEY_KEYWORD_ARGUMENT_ISNT_A_BOOL = (
+        "type(``key``) != bool, _TYPE_ was given."
+    )
+    _SECRET_KEYWORD_ARGUMENT_ISNT_A_BOOL = (
+        "type(``secret``) != bool, _TYPE_ was given."
+    )
+    _TRUST_LEVELS_MUST_BE_BETWEEN_1_AND_5 = (
+        "Trust levels must be between 1 and 5, inclusively (1, 5)."
+    )
+    _UID_WASNT_LOCATED_ON_THE_KEYSERVER = (
+        "UID '_UID_' wasn't found on the keyserver."
+    )
+    _INADEQUATE_AMOUNT_OF_UID_WAS_SPECIFIED = (
+        "An insufficient amount of ``uid`` information was specified."
+    )
+
+    @classmethod
+    def home_directory_doesnt_exist(cls):
+        """
+        If an instance's home directory doesn't exist on the users file-
+        system, then the associated data & files created by the binary
+        will have nowhere to be saved. This will cause issues. This
+        method returns the issue for the user in a `FileNotFoundError`.
+        """
+        return FileNotFoundError(cls._HOME_DIRECTORY_DOESNT_EXIST)
+
+    @classmethod
+    def secret_keyword_argument_isnt_a_bool(cls, secret):
+        """
+        There should be no abiguity when instructing the gpg2 binary to
+        do anything related to secret keys. So, if a user passes a non-
+        boolean to the ``secret`` keyword argument, then either their
+        intention or understanding of the method aren't clear. This
+        method returns the issue in a TypeError for the user.
+        """
+        return TypeError(
+            cls._SECRET_KEYWORD_ARGUMENT_ISNT_A_BOOL
+            .replace("_TYPE_", str(type(secret)))
+        )
+
+    @classmethod
+    def key_keyword_argument_isnt_a_bool(cls, key):
+        """
+        There should be no abiguity when instructing the gpg2 binary to
+        do anything related to secret keys & signing other keys. So, if
+        a user passes a non-boolean to the ``key`` keyword argument,
+        then either their intention or understanding of the method
+        aren't clear. This method returns the issue in a `TypeError` for
+        the user.
+        """
+        return TypeError(
+            cls._KEY_KEYWORD_ARGUMENT_ISNT_A_BOOL
+            .replace("_TYPE_", str(type(key)))
+        )
+
+    @classmethod
+    def inadequate_amount_of_uid_was_specified(cls):
+        """
+        An adequate amount of user ID information is needed to retrieve
+        or target the correct key in the package keyring or on the
+        keyserver. Targeting the wrong key can be very problematic.
+        This method returns the issue in a `ValueError` for the user.
+        """
+        return ValueError(cls._INADEQUATE_AMOUNT_OF_UID_WAS_SPECIFIED)
+
+    @classmethod
+    def trust_levels_must_be_between_1_and_5(cls):
+        """
+        The trust levels on keys are only valid when they are integers
+        between 1 and 5, inclusively (1, 5). An invalid trust level
+        would cause an error. This method returns the issue in a
+        `ValueError` for the user.
+        """
+        return ValueError(cls._TRUST_LEVELS_MUST_BE_BETWEEN_1_AND_5)
+
+    @classmethod
+    def uid_wasnt_found_on_the_keyserver(cls, uid):
+        """
+        The user won't be able to use or import a key over the network
+        if it isn't found on the keyserver. This method returns the
+        issue in a `FileNotFoundError` for the user.
+        """
+        return FileNotFoundError(
+            cls._UID_WASNT_LOCATED_ON_THE_KEYSERVER.replace("_UID_", uid)
+        )
+
+
 class GnuPG:
     """
     GnuPG - A linux-specific, small, simple & intuitive wrapper for
@@ -462,6 +557,7 @@ class GnuPG:
     _HOME_DIR = Path(__file__).absolute().parent / "gpghome"
     _OPTIONS_PATH = _HOME_DIR / "gpg2.conf"
     _EXECUTABLE_PATH = Path("/usr/bin/gpg2").absolute()
+    _MINIMUM_UID_LENGTH = 6
 
     def __init__(
         self,
@@ -504,9 +600,7 @@ class GnuPG:
         """
         homedir = Path(homedir).absolute() if homedir else self._homedir
         if not homedir.exists():
-            problem = "The specified home directory doesn't exist, "
-            problem += "which is going to be a problem."
-            raise FileNotFoundError(problem)
+            raise Issue.home_directory_doesnt_exist()
         os.chmod(homedir, 0o700)
         self._set_permissions_recursively(homedir, 0o700)
 
@@ -656,7 +750,7 @@ class GnuPG:
         if "We found an entry" not in response:
             return ""
         url_part = self._keyserver_host
-        url_part = response[response.find(f"{url_part}") :]
+        url_part = response[response.find(url_part) :]
         return url_part[: url_part.find('>') - 1]
 
     def encode_command(
@@ -777,44 +871,6 @@ class GnuPG:
         self.fingerprint = output.strip().split("\n")[-1][-40:]
         self._add_subkeys(self.fingerprint)
 
-    def delete(self, uid=""):
-        """
-        Deletes secret & public key matching ``uid`` from keyring.
-        """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
-        uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
-        if uid in self.list_keys(secret=True):
-            command = self.encode_command(
-                "--command-fd", "0", "--delete-secret-keys", uid
-            )
-            inputs = self.encode_inputs("y", "y")
-            Terminal.enter(command, inputs)
-        command = self.encode_command(
-            "--command-fd", "0", "--delete-key", uid
-        )
-        inputs = self.encode_inputs("y")
-        return Terminal.enter(command, inputs)
-
-    def revoke(self, uid=""):
-        """
-        Generates & imports revocation cert for key matching ``uid``,
-        returns the revoked key.
-        """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
-        uid = self.key_fingerprint(uid)
-        command = self.encode_command(
-            "--command-fd", "0", "--gen-revoke", uid, with_passphrase=True
-        )
-        command.remove("--batch")
-        inputs = self.encode_inputs(
-            self.user.passphrase, "y", "0", " ", "y"
-        )
-        revoke_cert = self.read_output(command, inputs)
-        self.text_import(revoke_cert)
-        return self.text_export(uid)
-
     def _raw_packets(self, target=""):
         """
         Returns OpenPGP metadata from ``target`` in raw string format.
@@ -867,8 +923,8 @@ class GnuPG:
         """
         Returns the terminal output of the --list-keys ``uid`` option.
         """
-        if secret is not True and secret is not False:
-            raise TypeError(f"``secret`` != bool, {type(secret)} given.")
+        if secret.__class__ != bool:
+            raise Issue.secret_keyword_argument_isnt_a_bool(secret)
         secret = "secret-" if secret == True else ""
         if uid:
             command = self.encode_command(f"--list-{secret}keys", uid)
@@ -902,15 +958,15 @@ class GnuPG:
         the local keyring, or optionally the key matching ``uid``.
         """
         return self._format_list_keys(
-            self._raw_list_keys(uid, secret), secret
+            self._raw_list_keys(uid, secret=secret), secret=secret
         )
 
     def key_email(self, uid=""):
         """
         Returns the email address on the key matching ``uid``.
         """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
+        if len(uid) < self._MINIMUM_UID_LENGTH:
+            raise Issue.inadequate_amount_of_uid_was_specified()
         parts = self._raw_list_keys(uid).replace(" ", "")
         for part in parts.split("\nuid"):
             if "@" in part and "]" in part:
@@ -923,16 +979,16 @@ class GnuPG:
         """
         Returns the fingerprint on the key matching ``uid``.
         """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
+        if len(uid) < self._MINIMUM_UID_LENGTH:
+            raise Issue.inadequate_amount_of_uid_was_specified()
         return next(iter(self.list_keys(uid)))
 
     def key_trust(self, uid=""):
         """
         Returns the current trust level on the key matching ``uid``.
         """
-        if len(uid) < 4:
-            raise ValueError("No ``uid`` was specified.")
+        if len(uid) < self._MINIMUM_UID_LENGTH:
+            raise Issue.inadequate_amount_of_uid_was_specified()
         key = self._raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
         return trust[: trust.find("]")]
@@ -944,12 +1000,46 @@ class GnuPG:
         uid = self.key_fingerprint(uid)
         level = int(level)
         if 1 > level or level > 5:
-            raise ValueError("Trust levels must be between 1 and 5.")
+            raise Issue.trust_levels_must_be_between_1_and_5()
         command = self.encode_command(
             "--edit-key", "--command-fd", "0", uid
         )
         inputs = self.encode_inputs("trust", str(level), "y", "save")
         return Terminal.enter(command, inputs)
+
+    def delete(self, uid=""):
+        """
+        Deletes secret & public key matching ``uid`` from keyring.
+        """
+        uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
+        if uid in self.list_keys(secret=True):
+            command = self.encode_command(
+                "--command-fd", "0", "--delete-secret-keys", uid
+            )
+            inputs = self.encode_inputs("y", "y")
+            Terminal.enter(command, inputs)
+        command = self.encode_command(
+            "--command-fd", "0", "--delete-key", uid
+        )
+        inputs = self.encode_inputs("y")
+        return Terminal.enter(command, inputs)
+
+    def revoke(self, uid=""):
+        """
+        Generates & imports revocation cert for key matching ``uid``,
+        returns the revoked key.
+        """
+        uid = self.key_fingerprint(uid)
+        command = self.encode_command(
+            "--command-fd", "0", "--gen-revoke", uid, with_passphrase=True
+        )
+        command.remove("--batch")
+        inputs = self.encode_inputs(
+            self.user.passphrase, "y", "0", " ", "y"
+        )
+        revoke_cert = self.read_output(command, inputs)
+        self.text_import(revoke_cert)
+        return self.text_export(uid)
 
     def encrypt(self, message="", uid="", *, sign=True, local_user=""):
         """
@@ -992,7 +1082,7 @@ class GnuPG:
                 message, uid.value, sign=sign, local_user=local_user
             )
 
-    def decrypt(self, message="", *, local_user=None):
+    def decrypt(self, message="", *, local_user=""):
         """
         Decrypts ``message`` autodetecting correct key from keyring.
         """
@@ -1013,7 +1103,7 @@ class GnuPG:
             terminal.bus.fingerprint = fingerprint
             return terminal.enter(command, inputs)
 
-    async def auto_decrypt(self, message="", *, local_user=None):
+    async def auto_decrypt(self, message="", *, local_user=""):
         """
         Queries keyserver before decryption if ``message`` signature key
         isn't in the local keyring.
@@ -1031,7 +1121,9 @@ class GnuPG:
         if ``key`` == False.
         """
         self._reset_daemon()
-        if key == True:  # avoid truthiness
+        if key.__class__ != bool:  # avoid truthiness
+            raise Issue.key_keyword_argument_isnt_a_bool(key)
+        elif key:
             command = self.encode_command(
                 "--local-user",
                 local_user if local_user else self.fingerprint,
@@ -1040,7 +1132,7 @@ class GnuPG:
                 with_passphrase=True,
             )
             inputs = self.encode_inputs(self.user.passphrase)
-        elif key == False:
+        else:
             command = self.encode_command(
                 "--local-user",
                 local_user if local_user else self.fingerprint,
@@ -1048,8 +1140,6 @@ class GnuPG:
                 with_passphrase=True,
             )
             inputs = self.encode_inputs(self.user.passphrase, target)[:-1]
-        else:
-            raise TypeError(f"``key`` != boolean, {type(key)} given.")
         return self.read_output(command, inputs)
 
     def verify(self, message=""):
@@ -1083,7 +1173,7 @@ class GnuPG:
         """
         key_url = await self.search(uid)
         if not key_url:
-            raise FileNotFoundError(f"UID '{uid}' not found on server.")
+            raise Issue.uid_wasnt_found_on_the_keyserver(uid)
         print(f"key location: {key_url}")
         key = await self.network.get(key_url)
         print(f"downloaded:\n{key}")
@@ -1094,8 +1184,7 @@ class GnuPG:
         Imports a key from the file located at ``path``.
         """
         with open(path, "r") as keyfile:
-            key = keyfile.read()
-        return self.text_import(key)
+            return self.text_import(keyfile.read())
 
     def text_import(self, key=""):
         """
@@ -1168,15 +1257,15 @@ class GnuPG:
         ``secret`` == True.
         """
         uid = self.key_fingerprint(uid)
-        if secret == True:  # avoid truthiness
+        if secret.__class__ != bool:  # avoid truthiness
+            raise Issue.secret_keyword_argument_isnt_a_bool(secret)
+        elif secret:
             command = self.encode_command(
                 "-a", "--export-secret-keys", uid, with_passphrase=True
             )
             inputs = self.encode_inputs(self.user.passphrase)
             return self.read_output(command, inputs)
-        elif secret == False:
+        else:
             command = self.encode_command("-a", "--export", uid)
             return Terminal.enter(command)
-        else:
-            raise TypeError(f"``secret`` != bool, {type(secret)} given.")
 

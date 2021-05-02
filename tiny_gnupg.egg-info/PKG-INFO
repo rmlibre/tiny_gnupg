@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tiny-gnupg
-Version: 0.7.5
+Version: 0.7.6
 Summary: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 Home-page: https://github.com/rmlibre/tiny_gnupg
 Author: Gonzo Investigative Journalism Agency, LLC
@@ -586,6 +586,26 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         ``Changelog`` 
         ============= 
+        
+        
+        Changes for version 0.7.6 
+        ========================= 
+        
+        
+        Major Changes 
+        ------------- 
+        
+        -  Added the new ``Issue`` class. It takes care of raising exceptions 
+           & giving error messages to the user for issues which aren't caused 
+           by calling the gpg2 binary. This comes with some refactorings. 
+        
+        
+        Minor Changes 
+        ------------- 
+        
+        -  Various code cleanups & refactorings. 
+        
+        
         
         
         Changes for version 0.7.5 

@@ -9,7 +9,10 @@
 #
 
 
-__version__ = "0.7.5"
+__all__ = ["GnuPG", "Network", "Terminal", "run"]
+
+
+__version__ = "0.7.6"
 
 
 __license__ = "GPLv3"
@@ -22,5 +25,4 @@ __doc__ = (
 
 
 from .tiny_gnupg import *
-from .tiny_gnupg import __all__
 
