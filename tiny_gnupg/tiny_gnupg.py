@@ -244,7 +244,7 @@ class Error:
     to be run after exceptions are raised within a `Terminal` class'
     context manager.
     """
-    _BAD_PASSPHRASE_OR_KEY = (
+    _BAD_PASSPHRASE_OR_MISSING_KEY = (
         "Passphrase wrong, inexistent key, or invalid rights to access "
         "secret key."
     )
@@ -254,30 +254,27 @@ class Error:
     _INVALID_TARGET_OPENPGP_DATA = (
         "The ``target`` doesn't seem to be valid OpenPGP data."
     )
-    _KEY_WITH_UID_NOT_IN_KEYRING = (
-        "UID '_UID_' isn't in instance's _SECRET_keyring"
+    _KEY_WITH_UID_ISNT_IN_KEYRING = (
+        "UID '_UID_' isn't in the instance's _SECRET_keyring"
     )
     _SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING = (
-        "UID '_UID_' isn't the instance's keyring."
+        "UID '_UID_' isn't in the instance's keyring."
     )
     _KEY_ISNT_IMPORTABLE = (
         "The _UID_ key isn't importable. See https://dev.gnupg.org/T4393"
     )
-    _MESSAGE_IS_UNVERIFIABLE = "``message`` is unverifiable."
+    _MESSAGE_IS_UNVERIFIABLE = "The ``message`` is unverifiable."
 
     @classmethod
-    def _key_with_uid_not_in_keyring(cls, uid, secret):
+    def _key_with_uid_isnt_in_keyring(cls, uid, secret):
         """
         Inserts the uid of key causing the error into a static string
         that is reported to the user. Also inserts a conditional string
         to signal if the key was being checked for among the instance's
         secret keys.
         """
-        return (
-            cls._KEY_WITH_UID_NOT_IN_KEYRING
-            .replace("_UID_", uid)
-            .replace("_SECRET_", secret)
-        )
+        error = cls._KEY_WITH_UID_ISNT_IN_KEYRING
+        return error.replace("_UID_", uid).replace("_SECRET_", secret)
 
     @classmethod
     def _signatures_public_key_isnt_in_keyring(cls, uid):
@@ -285,10 +282,8 @@ class Error:
         Inserts the uid of key causing the error into a static string
         that is reported to the user.
         """
-        return (
-            cls._SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING
-            .replace("_UID_", uid)
-        )
+        error = cls._SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING
+        return error.replace("_UID_", uid)
 
     @classmethod
     def _key_isnt_importable(cls, uid):
@@ -324,7 +319,7 @@ class Error:
                 bus.command, bus.inputs, stderr=STDOUT, **bus.kw
             )
         except CalledProcessError as permissions_check:
-            warning = PermissionError(cls._BAD_PASSPHRASE_OR_KEY)
+            warning = PermissionError(cls._BAD_PASSPHRASE_OR_MISSING_KEY)
             warning.inputs = bus.inputs
             warning.command = bus.command
             warning.output = permissions_check.output.decode()
@@ -373,7 +368,9 @@ class Error:
         """
         cls._raise_unexpected_error(error)
         uid, secret = terminal.bus.uid, terminal.bus.secret
-        warning = LookupError(cls._key_with_uid_not_in_keyring(uid, secret))
+        warning = LookupError(
+            cls._key_with_uid_isnt_in_keyring(uid, secret)
+        )
         warning.value = terminal.bus.uid
         raise warning
 
@@ -399,7 +396,7 @@ class Error:
             warning = LookupError(
                 cls._signatures_public_key_isnt_in_keyring(uid)
                 if uid not in bus.keys()
-                else cls._BAD_PASSPHRASE_OR_KEY
+                else cls._BAD_PASSPHRASE_OR_MISSING_KEY
             )
             warning.value = uid
             raise warning
@@ -407,9 +404,9 @@ class Error:
     @classmethod
     def unverifiable_message(cls, terminal, error):
         """
-        If some provided data isn't a valid signature then an error is
-        caused when verification is attempted. This method is run after
-        a verification error to inform the user.
+        Both an invalid signature & not having a signature's public key
+        in the instance keyring will cause an error. This method is run
+        after such verification errors to inform the user.
         """
         cls._raise_unexpected_error(error)
         exception = PermissionError(cls._MESSAGE_IS_UNVERIFIABLE)
@@ -453,8 +450,8 @@ class Issue:
     _UID_WASNT_LOCATED_ON_THE_KEYSERVER = (
         "UID '_UID_' wasn't found on the keyserver."
     )
-    _INADEQUATE_AMOUNT_OF_UID_WAS_SPECIFIED = (
-        "An insufficient amount of ``uid`` information was specified."
+    _INADEQUATE_LENGTH_UID_WAS_GIVEN = (
+        "The given ``uid`` is smaller than the minimum allowed length."
     )
 
     @classmethod
@@ -476,10 +473,9 @@ class Issue:
         intention or understanding of the method aren't clear. This
         method returns the issue in a TypeError for the user.
         """
-        return TypeError(
-            cls._SECRET_KEYWORD_ARGUMENT_ISNT_A_BOOL
-            .replace("_TYPE_", str(type(secret)))
-        )
+        secret_type = str(type(secret))
+        issue = cls._SECRET_KEYWORD_ARGUMENT_ISNT_A_BOOL
+        return TypeError(issue.replace("_TYPE_", secret_type))
 
     @classmethod
     def key_keyword_argument_isnt_a_bool(cls, key):
@@ -491,20 +487,19 @@ class Issue:
         aren't clear. This method returns the issue in a `TypeError` for
         the user.
         """
-        return TypeError(
-            cls._KEY_KEYWORD_ARGUMENT_ISNT_A_BOOL
-            .replace("_TYPE_", str(type(key)))
-        )
+        key_type = str(type(key))
+        issue = cls._KEY_KEYWORD_ARGUMENT_ISNT_A_BOOL
+        return TypeError(issue.replace("_TYPE_", key_type))
 
     @classmethod
-    def inadequate_amount_of_uid_was_specified(cls):
+    def inadequate_length_uid_was_given(cls):
         """
         An adequate amount of user ID information is needed to retrieve
         or target the correct key in the package keyring or on the
         keyserver. Targeting the wrong key can be very problematic.
         This method returns the issue in a `ValueError` for the user.
         """
-        return ValueError(cls._INADEQUATE_AMOUNT_OF_UID_WAS_SPECIFIED)
+        return ValueError(cls._INADEQUATE_LENGTH_UID_WAS_GIVEN)
 
     @classmethod
     def trust_levels_must_be_between_1_and_5(cls):
@@ -523,9 +518,8 @@ class Issue:
         if it isn't found on the keyserver. This method returns the
         issue in a `FileNotFoundError` for the user.
         """
-        return FileNotFoundError(
-            cls._UID_WASNT_LOCATED_ON_THE_KEYSERVER.replace("_UID_", uid)
-        )
+        issue = cls._UID_WASNT_LOCATED_ON_THE_KEYSERVER
+        return FileNotFoundError(issue.replace("_UID_", uid))
 
 
 class GnuPG:
@@ -966,7 +960,7 @@ class GnuPG:
         Returns the email address on the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_amount_of_uid_was_specified()
+            raise Issue.inadequate_length_uid_was_given()
         parts = self._raw_list_keys(uid).replace(" ", "")
         for part in parts.split("\nuid"):
             if "@" in part and "]" in part:
@@ -980,7 +974,7 @@ class GnuPG:
         Returns the fingerprint on the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_amount_of_uid_was_specified()
+            raise Issue.inadequate_length_uid_was_given()
         return next(iter(self.list_keys(uid)))
 
     def key_trust(self, uid=""):
@@ -988,7 +982,7 @@ class GnuPG:
         Returns the current trust level on the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_amount_of_uid_was_specified()
+            raise Issue.inadequate_length_uid_was_given()
         key = self._raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
         return trust[: trust.find("]")]

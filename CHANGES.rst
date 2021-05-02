@@ -61,6 +61,18 @@
 ============= 
 
 
+Changes for version 0.7.7 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Some documentation improvements & refactorings.
+
+
+
+
 Changes for version 0.7.6 
 ========================= 
 
