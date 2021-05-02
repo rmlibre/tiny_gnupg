@@ -923,7 +923,7 @@ class GnuPG:
         """
         Returns the terminal output of the --list-keys ``uid`` option.
         """
-        if secret.__class__ != bool:
+        if secret.__class__ != bool:  # avoid truthiness
             raise Issue.secret_keyword_argument_isnt_a_bool(secret)
         secret = "secret-" if secret == True else ""
         if uid:
@@ -1110,11 +1110,11 @@ class GnuPG:
         """
         try:
             return self.decrypt(message, local_user=local_user)
-        except LookupError as fingerprint:
-            await self.network_import(fingerprint.value)
+        except LookupError as uid:
+            await self.network_import(uid.value)
             return self.decrypt(message, local_user=local_user)
 
-    def sign(self, target="", *, local_user="", key=False):
+    def sign(self, target="", *, key=False, local_user=""):
         """
         Signs key matching ``target`` uid with a key matching ``local_user``
         uid or the instance default. Optionally signs ``target`` message
@@ -1147,7 +1147,6 @@ class GnuPG:
         Verifies signed ``message`` if the corresponding public key is
         in the local keyring.
         """
-        self._reset_daemon()
         fingerprint = self._packet_fingerprint(message)
         fingerprint = self.key_fingerprint(fingerprint)
         command = self.encode_command("--verify")
@@ -1163,8 +1162,8 @@ class GnuPG:
         """
         try:
             return self.verify(message)
-        except LookupError as fingerprint:
-            await self.network_import(fingerprint.value)
+        except LookupError as uid:
+            await self.network_import(uid.value)
             return self.verify(message)
 
     async def network_import(self, uid=""):
