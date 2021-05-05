@@ -434,6 +434,7 @@ def test_cipher(gpg):
         email=email,
         username=username,
         passphrase=passphrase,
+        homedir=_homedir,
         executable=_executable,
     )
     sender.gen_key()
@@ -447,16 +448,10 @@ def test_cipher(gpg):
         failed = False
         gpg.decrypt(msg)
     except LookupError as warning:
-        try: gpg.list_keys(warning.value)
-        except: failed = True
+        failed = True
         gpg.text_import(sender_pkey)
-        gpg.list_keys(warning.value)
+        gpg.list_keys(warning.uid)
     finally:
-        while True:
-            try:
-                sender.delete(sender.fingerprint)
-            except:
-                break
         assert failed  # fingerprint is subkey of newly added key which
         # was derived from the returned ``decrypt()`` exception ``value``
         # attribute
@@ -665,8 +660,6 @@ def test_auto_fetch_methods(gpg):
         run(gpg.auto_verify(dev_signed_encrypted_message))
     except PermissionError as error:
         failed_correctly = True
-        notice = "``message`` is unverifiable."
-        assert notice in error.args[0]
     finally:
         assert failed_correctly  # signed encrypted message shows only
         # recipient from the outside (without the decryption key). Tester
@@ -681,7 +674,7 @@ def test_auto_fetch_methods(gpg):
         run(gpg.auto_verify(dev_encrypted_message))
     except Exception as exception:
         failed = True
-        keyid = exception.value
+        keyid = exception.uid
         assert gpg.key_email(keyid) == gpg.key_email(keyserver_email)
     finally:
         assert failed  # signed message shows only recipient from the
