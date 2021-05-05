@@ -1,5 +1,6 @@
 tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 ==============================================================================
+
 A linux specific, small, simple & intuitive wrapper for creating, using
 and managing GnuPG's Ed25519 curve keys. In our design, we favor
 reducing code size & complexity with strong, bias defaults over
@@ -31,20 +32,40 @@ to change. Contributions are welcome.
 
 
 
-Install
--------
+Table Of Contents 
+----------------- 
+
+#)  `Install`_ 
+
+#)  `Basic Commands`_ 
+
+#)  `Networking Examples`_ 
+
+#)  `About Torification`_ 
+
+#)  `More Commands`_ 
+
+#)  `Retiring Keys`_ 
+
+
+
+
+_`Install` 
+---------- 
 
 .. code:: shell
 
-    sudo apt-get install tor torsocks gnupg2 gpg-agent
+    sudo apt-get install tor torsocks gnupg2 gpg-agent 
     
-    pip install --user --upgrade tiny_gnupg
+    pip install --user --upgrade tiny_gnupg 
 
 
 
 
-Usage Example
--------------
+_`Basic Commands` 
+----------------- 
+
+The ``GnuPG`` class's instances are the primary interface for running commands & managing keys using the gpg2 executable. 
 
 .. code:: python
 
@@ -92,7 +113,7 @@ Usage Example
     
     inputs = gpg.encode_inputs("Message to myself") 
     
-    output = gpg.read_output(command, inputs) 
+    encrypted_message = gpg.read_output(command, inputs) 
 
 
     # If a command would invoke the need for a passphrase, the 
@@ -206,8 +227,8 @@ The package no longer comes with its own gpg2 binary. Your system gpg2 executabl
 
 
 
-Networking Example 
------------------- 
+_`Networking Examples` 
+---------------------- 
 
 .. code:: python
 
@@ -333,14 +354,12 @@ These networking tools work off instances of aiohttp.ClientSession. To learn mor
 
 
 
-About Torification 
------------------- 
+_`About Torification` 
+--------------------- 
+
+A user can make sure that any connections the gnupg binary makes with the network are always run through Tor by setting ``torify=True`` during initialization. 
 
 .. code:: python
-
-    # A user can make sure that any connections gnupg makes with the 
-    
-    # network are always run through Tor by setting ``torify=True`` -> 
 
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
     
@@ -352,40 +371,23 @@ About Torification
         
         passphrase="test_user_passphrase", 
         
-        torify=True,
+        torify=True, 
         
         executable=PATH_TO_GPG_BINARY, 
         
     ) 
 
+This is helpful because there are gnupg settings which cause certain commands to do automatic connections to the web. For instance, when encrypting, gnupg may be set to automatically search for the recipient's key on a keyserver if it's not in the local keyring. This doesn't normally effect `tiny_gnupg` because it doesn't use gnupg's networking interface. It ensures Tor connections through the `aiohttp_socks` library. But, if gnupg does make these kinds of connections silently, using torify can prevent a user's IP address from being inadvertently revealed. 
 
-    # This is helpful because there are gnupg settings which cause 
-    
-    # certain commands to do automatic connections to the web. For 
-    
-    # instance, when encrypting, gnupg may be set to automatically 
-    
-    # search for the recipient's key on a keyserver if it's not in the 
-    
-    # local keyring. tiny_gnupg doesn't use gnupg's networking 
-    
-    # interface, and ensures Tor connections through the aiohttp_socks 
-    
-    # library. So, if gnupg makes these kinds of silent connections, 
-    
-    # it can inadvertently reveal a user's ip. 
-
-
-Using torify requires a Tor installation on the user system. If it's
-running Debian/Ubuntu then this guide_ could be helpful.
+Using torify requires a Tor installation on the user system. If the user is running Debian / Ubuntu, then this guide_ could be helpful. 
 
 .. _guide: https://2019.www.torproject.org/docs/debian.html.en
 
 
 
 
-Extras
-------
+_`More Commands` 
+---------------- 
 
 .. code:: python
 
@@ -459,8 +461,8 @@ Extras
 
 
 
-Retiring Keys 
-------------- 
+_`Retiring Keys` 
+---------------- 
 
 After a user no longer considers a key useful, or wants to dissociate from the key, then they have some options:
 

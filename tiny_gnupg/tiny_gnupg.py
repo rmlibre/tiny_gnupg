@@ -36,6 +36,7 @@ from aiohttp import ClientSession
 from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 from aiocontext import async_contextmanager
+from typing import Any, Hashable, Iterable, Union
 from aiohttp_socks import ProxyConnector, ProxyType
 
 
@@ -44,10 +45,10 @@ run = asyncio.get_event_loop().run_until_complete
 
 class User:
     """
-    A small type for holding user instance information.
+    A small type for holding `GnuPG` user instance information.
     """
 
-    def __init__(self, username, email, *, passphrase):
+    def __init__(self, username: str, email: str, *, passphrase: str):
         self.email = email
         self.username = username
         self.passphrase = passphrase
@@ -57,11 +58,14 @@ class Network:
     """
     A simple type to create & manage connections to Tor & the internet.
     """
+
+    _PORT = 80
+    _TOR_PORT = 9050
     _ProxyType = ProxyType
     _ClientSession = ClientSession
     _ProxyConnector = ProxyConnector
 
-    def __init__(self, *, port=80, tor_port=9050):
+    def __init__(self, *, port=_PORT, tor_port=_TOR_PORT):
         self.port = port
         self.tor_port = tor_port
 
@@ -79,7 +83,7 @@ class Network:
             **kw,
         )
 
-    def Session(self, *, connector=None, **kw):
+    def Session(self, *, connector: ProxyConnector = None, **kw):
         """
         Autoconstruct an aiohttp.ClientSession instance.
         """
@@ -87,7 +91,7 @@ class Network:
         return self._ClientSession(connector=connector, **kw)
 
     @async_contextmanager
-    async def context_get(self, url, **kw):
+    async def context_get(self, url: str, **kw):
         """
         Opens a aiohttp.ClientSession.get context manager.
         """
@@ -98,7 +102,7 @@ class Network:
             await session.close()
 
     @async_contextmanager
-    async def context_post(self, url, **kw):
+    async def context_post(self, url: str, **kw):
         """
         Opens a aiohttp.ClientSession.post context manager.
         """
@@ -108,14 +112,14 @@ class Network:
         finally:
             await session.close()
 
-    async def get(self, url, **kw):
+    async def get(self, url: str, **kw):
         """
         Returns text of an aiohttp.ClientSession.get request.
         """
         async with self.context_get(url, **kw) as response:
             return await response.text()
 
-    async def post(self, url, **kw):
+    async def post(self, url: str, **kw):
         """
         Returns text of an aiohttp.ClientSession.post request.
         """
@@ -130,17 +134,18 @@ class MessageBus:
     `tiny_gnupg` package to carry values between user code & the output
     of commands sent to the terminal.
     """
+
     def __init__(self, mapping={}, **kwargs):
         kw = mapping if mapping.__class__ == dict else json.loads(mapping)
         self.__dict__.update({**kw, **kwargs})
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Hashable, value: Any):
         self.__dict__[key] = value
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: Hashable):
         del self.__dict__[key]
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Hashable):
         try:
             return self.__dict__[key]
         except KeyError:
@@ -176,7 +181,7 @@ class Terminal:
     """
 
     @staticmethod
-    def _if_exception(self, error, *a, **kw):
+    def _if_exception(self, error: Exception, *a, **kw):
         """
         A placeholder method which is run after an execption is raised
         within the class' context manager if another function isn't
@@ -194,7 +199,7 @@ class Terminal:
         return
 
     @staticmethod
-    def enter(command=(), inputs=b"", *, decode=True, **kw):
+    def enter(command: Iterable[str], inputs=b"", *, decode=True, **kw):
         """
         Quotes terminal escape characters & runs user commands.
         """
@@ -244,6 +249,7 @@ class Error:
     to be run after exceptions are raised within a `Terminal` class'
     context manager.
     """
+
     _BAD_PASSPHRASE_OR_MISSING_KEY = (
         "Passphrase wrong, inexistent key, or invalid rights to access "
         "secret key."
@@ -255,46 +261,47 @@ class Error:
         "The ``target`` doesn't seem to be valid OpenPGP data."
     )
     _KEY_WITH_UID_ISNT_IN_KEYRING = (
-        "UID '_UID_' isn't in the instance's _SECRET_keyring"
+        "UID '_UID_' isn't in the instance's _SECRET_keyring."
     )
     _SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING = (
         "UID '_UID_' isn't in the instance's keyring."
     )
     _KEY_ISNT_IMPORTABLE = (
-        "The _UID_ key isn't importable. See https://dev.gnupg.org/T4393"
+        "Key '_UID_' isn't importable. See https://dev.gnupg.org/T4393."
     )
     _MESSAGE_IS_UNVERIFIABLE = "The ``message`` is unverifiable."
 
     @classmethod
-    def _key_with_uid_isnt_in_keyring(cls, uid, secret):
+    def _key_with_uid_isnt_in_keyring(cls, uid: str, secret: bool):
         """
-        Inserts the uid of key causing the error into a static string
-        that is reported to the user. Also inserts a conditional string
-        to signal if the key was being checked for among the instance's
-        secret keys.
+        Inserts the ``uid`` of the key causing an error into a static
+        string that's reported to the user. Also inserts a conditional
+        string to signal if the key was being checked for among the
+        instance's ``secret`` keys.
         """
+        secret = "secret-" if secret else ""
         error = cls._KEY_WITH_UID_ISNT_IN_KEYRING
         return error.replace("_UID_", uid).replace("_SECRET_", secret)
 
     @classmethod
-    def _signatures_public_key_isnt_in_keyring(cls, uid):
+    def _signatures_public_key_isnt_in_keyring(cls, uid: str):
         """
-        Inserts the uid of key causing the error into a static string
-        that is reported to the user.
+        Inserts the ``uid`` of the key causing an error into a static
+        string that's reported to the user.
         """
         error = cls._SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING
         return error.replace("_UID_", uid)
 
     @classmethod
-    def _key_isnt_importable(cls, uid):
+    def _key_isnt_importable(cls, uid: str):
         """
-        Inserts the uid of key causing the error into a static string
-        that is reported to the user.
+        Inserts the ``uid`` of the key causing an error into a static
+        string that's reported to the user.
         """
         return cls._KEY_ISNT_IMPORTABLE.replace("_UID_", uid)
 
     @staticmethod
-    def _raise_unexpected_error(error):
+    def _raise_unexpected_error(error: Exception):
         """
         Raises any non-`CalledProcessError` so it isn't processed any
         further by an error handling method.
@@ -303,11 +310,11 @@ class Error:
             raise error
 
     @classmethod
-    def no_permission(cls, terminal, error):
+    def no_permission(cls, terminal, error: Exception):
         """
         If either the user's passphrase is wrong, or the key they're
         wanting to use isn't owned by their current instance, or the key
-        isn't in the package's keyring, then an error is raised. This
+        isn't in the instance's keyring, then an error is raised. This
         method runs a command again after failure to catch the error's
         outputs to inform the user.
         """
@@ -315,9 +322,7 @@ class Error:
         try:
             bus = terminal.bus
             bus.kw.pop("stderr") if "stderr" in bus.kw else 0
-            terminal.enter(
-                bus.command, bus.inputs, stderr=STDOUT, **bus.kw
-            )
+            terminal.enter(bus.command, bus.inputs, stderr=STDOUT, **bus.kw)
         except CalledProcessError as permissions_check:
             warning = PermissionError(cls._BAD_PASSPHRASE_OR_MISSING_KEY)
             warning.inputs = bus.inputs
@@ -328,58 +333,70 @@ class Error:
             raise warning if (bad_passphrase or missing_key) else error
 
     @classmethod
-    def secret_packets(cls, terminal, error):
+    def secret_packets(cls, terminal, error: Exception):
         """
-        If openpgp data packets are encrypted it causes an error. This
+        If OpenPGP data packets are encrypted it causes an error. This
         method is run after a read failure to inform the user the data
-        needs to be decrypted successfully before reading its openpgp
+        needs to be decrypted successfully before reading its OpenPGP
         data.
         """
         cls._raise_unexpected_error(error)
         warning = KeyError(cls._PACKETS_PROTECTED_BY_SECRET_KEY)
-        warning.value = error.output.decode()
-        raise warning if "No secret key" in warning.value else error
+        warning.packets = error.output.decode()
+        raise warning if "No secret key" in warning.packets else error
 
     @classmethod
-    def invalid_pgp_packets(cls, terminal, error):
+    def invalid_pgp_packets(cls, terminal, error: Exception):
         """
-        If some target data doesn't contain correctly formatted openpgp
+        If some target data doesn't contain correctly formatted OpenPGP
         data packets it causes an error. This method is run after a read
         failure to inform the user something is wrong with the data that
         was provided.
         """
         if error.__class__ == KeyError:
-            terminal.bus.packets = error.value
+            terminal.bus.packets = error.packets
             return True
         else:
             cls._raise_unexpected_error(error)
-            exception = TypeError(cls._INVALID_TARGET_OPENPGP_DATA)
-            exception.value = terminal.bus.target
-            exception.output = error.output
-            raise exception
+            warning = TypeError(cls._INVALID_TARGET_OPENPGP_DATA)
+            warning.target = terminal.bus.target
+            warning.packets = error.output.decode()
+            raise warning
 
     @classmethod
-    def cannot_list_key(cls, terminal, error):
+    def cannot_list_key(cls, terminal, error: Exception):
         """
-        Searching for a uid which isn't contained by any key in the
-        package's keyring causes an error. This method is run after a
-        search failure to inform the user the uid they provided doesn't
-        match a key in their keyring.
+        Searching for a UID which isn't contained by any key in the
+        instance's keyring causes an error. This method is run after a
+        search failure to inform the user the UID they provided doesn't
+        match a key in their instance's keyring.
         """
         cls._raise_unexpected_error(error)
         uid, secret = terminal.bus.uid, terminal.bus.secret
         warning = LookupError(
             cls._key_with_uid_isnt_in_keyring(uid, secret)
         )
-        warning.value = terminal.bus.uid
+        warning.uid = terminal.bus.uid
         raise warning
 
-    @classmethod
-    def no_signature_key(cls, terminal, error):
+    @staticmethod
+    def _pull_uid_from_signature_error(terminal, error: Exception):
         """
-        Decrypting an openpgp message which contains a signature causes
+        Returns the signing key's UID from the gpg2 error message caused
+        by trying to verify a signature without having the corresponding
+        public key in the instance's keyring.
+        """
+        sentinel = "gpg:using"
+        error_lines = error.output.decode().replace(" ", "").split("\n")
+        uid = [line[-40:] for line in error_lines if sentinel in line]
+        return uid[-1] if uid else terminal.bus.uid
+
+    @classmethod
+    def no_signature_key(cls, terminal, error: Exception):
+        """
+        Decrypting an OpenPGP message which contains a signature causes
         an error if the public key associated with the signature isn't
-        in the package's keyring. An error is also possible if the user
+        in the instance's keyring. An error is also possible if the user
         doesn't have the correct passphrase or decryption key. This
         method runs the decryption again after a failure to determine
         the issue & correctly inform the user.
@@ -388,43 +405,38 @@ class Error:
         try:
             bus = terminal.bus
             terminal.enter(bus.command, bus.inputs, stderr=STDOUT)
-        except CalledProcessError as exception:
-            sentinel = "gpg:                using"
-            error_lines = exception.output.decode().strip().split("\n")
-            uid = [line[-40:] for line in error_lines if sentinel in line]
-            uid = uid[-1] if uid else bus.fingerprint
+        except CalledProcessError as err:
+            uid = cls._pull_uid_from_signature_error(terminal, err)
             warning = LookupError(
                 cls._signatures_public_key_isnt_in_keyring(uid)
                 if uid not in bus.keys()
                 else cls._BAD_PASSPHRASE_OR_MISSING_KEY
             )
-            warning.value = uid
+            warning.uid = uid
             raise warning
 
     @classmethod
-    def unverifiable_message(cls, terminal, error):
+    def unverifiable_message(cls, terminal, error: Exception):
         """
         Both an invalid signature & not having a signature's public key
-        in the instance keyring will cause an error. This method is run
-        after such verification errors to inform the user.
+        in the instance's keyring will cause an error. This method is
+        run after such verification errors to inform the user.
         """
         cls._raise_unexpected_error(error)
-        exception = PermissionError(cls._MESSAGE_IS_UNVERIFIABLE)
-        exception.value = terminal.bus.fingerprint
-        raise exception
+        warning = PermissionError(cls._MESSAGE_IS_UNVERIFIABLE)
+        warning.uid = terminal.bus.uid
+        raise warning
 
     @classmethod
-    def key_isnt_importable(cls, terminal, error):
+    def key_isnt_importable(cls, terminal, error: Exception):
         """
-        Since gnupg can't import keys without user ID's, this method is
+        Since GnuPG can't import keys without user ID's, this method is
         run after an import failure to inform the user of this bug in
         GnuPG if it was the cause of the error.
         """
         cls._raise_unexpected_error(error)
-        warning = KeyError(
-            cls._key_isnt_importable(terminal.bus.fingerprint)
-        )
-        warning.value = terminal.bus.key
+        warning = KeyError(cls._key_isnt_importable(terminal.bus.uid))
+        warning.key = terminal.bus.key
         warning.output = error.output.decode()
         raise warning if "no user ID" in warning.output else error
 
@@ -434,6 +446,7 @@ class Issue:
     This type helps improve readability & concern separation within the
     GnuPG class when general issues are encountered.
     """
+
     _HOME_DIRECTORY_DOESNT_EXIST = (
         "The specified home directory doesn't exist, which is going to "
         "be a problem."
@@ -451,7 +464,8 @@ class Issue:
         "UID '_UID_' wasn't found on the keyserver."
     )
     _INADEQUATE_LENGTH_UID_WAS_GIVEN = (
-        "The given ``uid`` is smaller than the minimum allowed length."
+        "UID '_UID_' has fewer than the minimum allowed number of "
+        "characters."
     )
 
     @classmethod
@@ -465,7 +479,7 @@ class Issue:
         return FileNotFoundError(cls._HOME_DIRECTORY_DOESNT_EXIST)
 
     @classmethod
-    def secret_keyword_argument_isnt_a_bool(cls, secret):
+    def secret_keyword_argument_isnt_a_bool(cls, secret: bool):
         """
         There should be no abiguity when instructing the gpg2 binary to
         do anything related to secret keys. So, if a user passes a non-
@@ -478,7 +492,7 @@ class Issue:
         return TypeError(issue.replace("_TYPE_", secret_type))
 
     @classmethod
-    def key_keyword_argument_isnt_a_bool(cls, key):
+    def key_keyword_argument_isnt_a_bool(cls, key: bool):
         """
         There should be no abiguity when instructing the gpg2 binary to
         do anything related to secret keys & signing other keys. So, if
@@ -492,19 +506,20 @@ class Issue:
         return TypeError(issue.replace("_TYPE_", key_type))
 
     @classmethod
-    def inadequate_length_uid_was_given(cls):
+    def inadequate_length_uid_was_given(cls, uid: str):
         """
         An adequate amount of user ID information is needed to retrieve
-        or target the correct key in the package keyring or on the
+        or target the correct key in the instance's keyring or on the
         keyserver. Targeting the wrong key can be very problematic.
         This method returns the issue in a `ValueError` for the user.
         """
-        return ValueError(cls._INADEQUATE_LENGTH_UID_WAS_GIVEN)
+        issue = cls._INADEQUATE_LENGTH_UID_WAS_GIVEN
+        return ValueError(issue.replace("_UID_", uid))
 
     @classmethod
     def trust_levels_must_be_between_1_and_5(cls):
         """
-        The trust levels on keys are only valid when they are integers
+        The trust levels on keys are only valid when they're integers
         between 1 and 5, inclusively (1, 5). An invalid trust level
         would cause an error. This method returns the issue in a
         `ValueError` for the user.
@@ -512,7 +527,7 @@ class Issue:
         return ValueError(cls._TRUST_LEVELS_MUST_BE_BETWEEN_1_AND_5)
 
     @classmethod
-    def uid_wasnt_found_on_the_keyserver(cls, uid):
+    def uid_wasnt_found_on_the_keyserver(cls, uid: str):
         """
         The user won't be able to use or import a key over the network
         if it isn't found on the keyserver. This method returns the
@@ -527,8 +542,8 @@ class GnuPG:
     GnuPG - A linux-specific, small, simple & intuitive wrapper for
     creating, using and managing GnuPG's Ed25519 curve keys. This class
     favors reducing code size & complexity with strong, bias defaults
-    over flexibility in the api. It's designed to turn the complex,
-    legacy, but powerful gnupg system into a fun tool to develop with.
+    over flexibility in the API. It's designed to turn the complex,
+    legacy, but powerful GnuPG system into a fun tool to develop with.
 
     Usage Example:
 
@@ -548,17 +563,23 @@ class GnuPG:
     assert run(gpg.search(uid))
     encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
     """
-    _HOME_DIR = Path(__file__).absolute().parent / "gpghome"
-    _OPTIONS_PATH = _HOME_DIR / "gpg2.conf"
+
+    _HOME_DIRECTORY = Path(__file__).absolute().parent / "gpghome"
+    _OPTIONS_PATH = _HOME_DIRECTORY / "gpg2.conf"
     _EXECUTABLE_PATH = Path("/usr/bin/gpg2").absolute()
     _MINIMUM_UID_LENGTH = 6
+    _SEARCH_PREFIX = "search?q="
+    _KEYSERVER = (
+        "http://zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmba"
+        "d.onion"
+    )
 
     def __init__(
         self,
         *,
-        username,
-        email,
-        passphrase,
+        username: str,
+        email: str,
+        passphrase: str,
         torify=False,
         homedir=None,
         options=None,
@@ -566,7 +587,7 @@ class GnuPG:
     ):
         """
         Initialize an instance intended to create, manage, or represent
-        a single key in the local package gnupg keyring.
+        a single key in the local instance GnuPG keyring.
         """
         self._torify = bool(torify)
         self.set_homedir(homedir)
@@ -578,7 +599,9 @@ class GnuPG:
         self._set_network_variables()
 
     @classmethod
-    def _set_permissions_recursively(cls, path, permissions=0o700):
+    def _set_permissions_recursively(
+        cls, path: Union[Path, str], permissions=0o700
+    ):
         """
         Takes a `pathlib.Path` object & recursively sets each sub- file
         & directory's ``permissions``.
@@ -588,7 +611,7 @@ class GnuPG:
             if subpath.is_dir():
                 cls._set_permissions_recursively(subpath, permissions)
 
-    def _set_homedir_permissions(self, homedir=None):
+    def _set_homedir_permissions(self, homedir: Union[Path, str] = None):
         """
         Set safer permissions on the home directory.
         """
@@ -598,22 +621,22 @@ class GnuPG:
         os.chmod(homedir, 0o700)
         self._set_permissions_recursively(homedir, 0o700)
 
-    def set_homedir(self, path=None):
+    def set_homedir(self, path: Union[Path, str] = None):
         """
         Initialize a home directory for gpg2 data to be saved.
         """
-        path = Path(path).absolute() if path else self._HOME_DIR
+        path = Path(path).absolute() if path else self._HOME_DIRECTORY
         self._homedir = path
         self._set_homedir_permissions()
 
-    def set_options(self, path=None):
+    def set_options(self, path: Union[Path, str] = None):
         """
         Initialize a path to the gpg2 config file.
         """
         path = Path(path).absolute() if path else self._OPTIONS_PATH
         self._options = path
 
-    def set_executable(self, path=None):
+    def set_executable(self, path: Union[Path, str] = None):
         """
         Initialize a path to the gpg2 executable binary.
         """
@@ -644,7 +667,7 @@ class GnuPG:
     @property
     def _base_command(self):
         """
-        Construct the default command used to call gnupg2.
+        Construct the default command used to call gpg2.
         """
         torify = ["torify"] if self._torify else []
         return torify + [
@@ -662,7 +685,7 @@ class GnuPG:
     @property
     def _base_passphrase_command(self):
         """
-        Construct the default command used to call gnupg2 when a user's
+        Construct the default command used to call gpg2 when a user's
         passphrase is needed.
         """
         return self._base_command + [
@@ -672,7 +695,7 @@ class GnuPG:
             "0",
         ]
 
-    def _set_fingerprint(self, uid=""):
+    def _set_fingerprint(self, uid: str):
         """
         Populate ``fingerprint`` attribute for persistent user.
         """
@@ -681,23 +704,30 @@ class GnuPG:
         except:
             self.fingerprint = ""
 
+    @staticmethod
+    def _quick_cleanup_for_url(string, *, tokens="\n\t\r\\ "):
+        """
+        Removes whitespace & problem ``tokens`` from a url ``string``
+        as well as trailing slashes, then returns the new string.
+        """
+        for token in tokens:
+            string = string.replace(token, "")
+        return string.strip("/")
+
     def _set_network_variables(
         self,
         *,
-        port=80,
-        tor_port=9050,
-        keyserver=(
-            "http://zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4i"
-            "qmbad.onion"
-        ),
-        search_prefix="search?q=",
+        port=Network._PORT,
+        tor_port=Network._TOR_PORT,
+        keyserver=_KEYSERVER,
+        search_prefix=_SEARCH_PREFIX,
     ):
         """
         Set network variables for adaptable implementations.
         """
         self.network = Network(port=port, tor_port=tor_port)
-        self._keyserver_host = keyserver.strip("/").strip()
-        self._search_prefix = search_prefix.strip("/").strip()
+        self._keyserver_host = self._quick_cleanup_for_url(keyserver)
+        self._search_prefix = self._quick_cleanup_for_url(search_prefix)
 
     @property
     def _keyserver(self):
@@ -709,14 +739,14 @@ class GnuPG:
     @property
     def _keyserver_export_api(self):
         """
-        Autoconstruct specific keyserver key upload api URL.
+        Autoconstruct specific keyserver key upload API URL.
         """
         return self._keyserver + "vks/v1/upload"
 
     @property
     def _keyserver_verify_api(self):
         """
-        Autoconstruct specific keyserver key verification api URL.
+        Autoconstruct specific keyserver key verification API URL.
         """
         return self._keyserver + "vks/v1/request-verify"
 
@@ -727,30 +757,30 @@ class GnuPG:
         """
         return self._keyserver + self._search_prefix
 
-    async def _raw_search(self, uid):
+    async def _raw_search(self, uid: str):
         """
-        Returns HTML of keyserver key search matching ``uid``.
+        Returns keyserver HTML of the search matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_length_uid_was_given()
+            raise Issue.inadequate_length_uid_was_given(uid)
         uid = uid.replace("@", "%40").replace(" ", "%20")
         url = self._searchserver + uid
         print(f"querying: {url}")
         return await self.network.get(url)
 
-    async def search(self, uid):
+    async def search(self, uid: str):
         """
-        Returns keyserver URL of the key found from ``uid``.
+        Returns keyserver URL of the key matching ``uid``.
         """
-        response = await self._raw_search(uid)
-        if "We found an entry" not in response:
+        html = await self._raw_search(uid)
+        if "We found an entry" not in html:
             return ""
-        url_part = self._keyserver_host
-        url_part = response[response.find(url_part) :]
-        return url_part[: url_part.find('>') - 1]
+        url = self._keyserver_host
+        html = html[html.find(url) :]
+        return html[: html.find(">") - 1]
 
     def encode_command(
-        self, *options, with_passphrase=False, manual=False
+        self, *options: Iterable[str], with_passphrase=False, manual=False
     ):
         """
         Autoformats gpg2 commands soley from additional options.
@@ -766,13 +796,14 @@ class GnuPG:
             cmd.remove("--no-tty")
             return cmd
 
-    def encode_inputs(self, *inputs):
+    def encode_inputs(self, *inputs: Iterable[str]):
         """
-        Prepares inputs *X for subprocess.check_output(input=*X).
+        Prepares ``*inputs`` for the `input` keyword-argument to the
+        `subprocess.check_output` method.
         """
         return ("\n".join(inputs) + "\n").encode()
 
-    def read_output(self, command=(), inputs=b"", **kw):
+    def read_output(self, command: Iterable[str], inputs=b"", **kw):
         """
         Quotes terminal escape characters & runs user commands.
         """
@@ -786,15 +817,14 @@ class GnuPG:
         """
         Resets the gpg-agent daemon.
         """
-        command = [
+        kill_command = [
             "gpgconf", "--homedir", self.homedir, "--kill", "gpg-agent"
         ]
-        kill_output = Terminal.enter(command)
-        command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
-        reset_output = Terminal.enter(command)
-        return kill_output, reset_output
+        Terminal.enter(kill_command)
+        start_command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
+        Terminal.enter(start_command)
 
-    def _add_subkeys(self, uid=""):
+    def _add_subkeys(self, uid: str):
         """
         Adds three subkeys with isolated roles to key matching ``uid``:
         ``uid`` Key
@@ -867,7 +897,7 @@ class GnuPG:
         self.fingerprint = output.strip().split("\n")[-1][-40:]
         self._add_subkeys(self.fingerprint)
 
-    def _raw_packets(self, target=""):
+    def _raw_packets(self, target: str):
         """
         Returns OpenPGP metadata from ``target`` in raw string format.
         """
@@ -883,7 +913,7 @@ class GnuPG:
         with Terminal(if_exception=Error.secret_packets) as terminal:
             return terminal.enter(command, inputs, stderr=STDOUT)
 
-    def _list_packets(self, target=""):
+    def _list_packets(self, target: str):
         """
         Returns OpenPGP metadata from ``target`` in list format.
         """
@@ -895,10 +925,10 @@ class GnuPG:
             for packet in terminal.bus.packets.strip().split("\n\t")
         ]
 
-    def _packet_fingerprint(self, target=""):
+    def _packet_fingerprint(self, target: str):
         """
-        Returns the sender's key fingerprint scraped from ``target``, a
-        gpg message, key or signature.
+        Returns the sender's key fingerprint scraped from some ``target``
+        OpenPGP data.
         """
         with Terminal(if_exception=Error.invalid_pgp_packets) as terminal:
             bus = terminal.bus
@@ -917,81 +947,82 @@ class GnuPG:
 
     def _raw_list_keys(self, uid="", secret=False):
         """
-        Returns the terminal output of the --list-keys ``uid`` option.
+        Returns the terminal output of the --list-keys ``uid`` option,
+        or `--list-secret-keys` if ``secret`` == True.
         """
         if secret.__class__ != bool:  # avoid truthiness
             raise Issue.secret_keyword_argument_isnt_a_bool(secret)
-        secret = "secret-" if secret == True else ""
-        if uid:
-            command = self.encode_command(f"--list-{secret}keys", uid)
-        else:
-            command = self.encode_command(f"--list-{secret}keys")
+        option = "--list-secret-keys" if secret else "--list-keys"
+        options = (option, uid) if uid else (option,)
+        command = self.encode_command(*options)
         with Terminal(if_exception=Error.cannot_list_key) as terminal:
             terminal.bus.uid = uid
             terminal.bus.secret = secret
             return terminal.enter(command)
 
-    def _format_list_keys(self, raw_list_keys_terminal_output, secret):
+    def _format_list_keys(self, raw_listed_keys: str, secret: bool):
         """
         Returns a dict of fingerprints & email addresses scraped from
-        the terminal output of the --list-keys option.
+        the terminal output of the `--list-keys` option, or `--list-
+        secret-keys` if ``secret`` == True.
         """
-        sentinel = "sec" if secret == True else "pub"
-        keys = raw_list_keys_terminal_output.split(f"\n{sentinel} ")
-        fingerprints = [
+        sentinel = "sec" if secret else "pub"
+        fingerprints = (
             part[part.find("\nuid") - 40 : part.find("\nuid")]
-            for part in keys
+            for part in raw_listed_keys.split(f"\n{sentinel} ")
             if "\nuid" in part
-        ]
-        emails = [
-            self.key_email(fingerprint) for fingerprint in fingerprints
-        ]
-        return dict(zip(fingerprints, emails))
+        )
+        return {
+            fingerprint: self.key_email(fingerprint)
+            for fingerprint in fingerprints
+        }
 
     def list_keys(self, uid="", *, secret=False):
         """
         Returns a dict of fingerprints & email addresses of all keys in
-        the local keyring, or optionally the key matching ``uid``.
+        the instance's keyring, or optionally the key matching ``uid``.
         """
         return self._format_list_keys(
             self._raw_list_keys(uid, secret=secret), secret=secret
         )
 
-    def key_email(self, uid=""):
+    def key_email(self, uid: str):
         """
         Returns the email address on the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_length_uid_was_given()
-        parts = self._raw_list_keys(uid).replace(" ", "")
-        for part in parts.split("\nuid"):
-            if "@" in part and "]" in part:
-                email = part[part.find("]") + 1 :]
-                if "<" in email and ">" in email:
-                    email = email[email.find("<") + 1 : email.find(">")]
-                return email
+            raise Issue.inadequate_length_uid_was_given(uid)
+        key_metadata = self._raw_list_keys(uid).replace(" ", "")
+        for line in key_metadata.split("\n"):
+            if "@" not in line or "uid" not in line:
+                continue
+            line = line[-line[::-1].find("]") :]
+            if "<" in line:
+                line = line[-line[::-1].find("<") : -1]
+            return line
 
-    def key_fingerprint(self, uid=""):
+    def key_fingerprint(self, uid: str):
         """
-        Returns the fingerprint on the key matching ``uid``.
+        Returns the fingerprint of the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_length_uid_was_given()
+            raise Issue.inadequate_length_uid_was_given(uid)
         return next(iter(self.list_keys(uid)))
 
-    def key_trust(self, uid=""):
+    def key_trust(self, uid: str):
         """
-        Returns the current trust level on the key matching ``uid``.
+        Returns the current trust level of the key matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_length_uid_was_given()
+            raise Issue.inadequate_length_uid_was_given(uid)
         key = self._raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
         return trust[: trust.find("]")]
 
-    def set_key_trust(self, uid="", level=5):
+    def set_key_trust(self, uid: str, level=5):
         """
-        Sets trust ``level`` to key matching ``uid`` in the keyring.
+        Sets the trust ``level`` of a key in the instance's keyring
+        which matches ``uid``.
         """
         uid = self.key_fingerprint(uid)
         level = int(level)
@@ -1001,11 +1032,12 @@ class GnuPG:
             "--edit-key", "--command-fd", "0", uid
         )
         inputs = self.encode_inputs("trust", str(level), "y", "save")
-        return Terminal.enter(command, inputs)
+        Terminal.enter(command, inputs)
 
-    def delete(self, uid=""):
+    def delete(self, uid: str):
         """
-        Deletes secret & public key matching ``uid`` from keyring.
+        Deletes secret & public key matching ``uid`` from the instance's
+        keyring.
         """
         uid = self.key_fingerprint(uid)  # avoid non-fingerprint uid crash
         if uid in self.list_keys(secret=True):
@@ -1018,11 +1050,11 @@ class GnuPG:
             "--command-fd", "0", "--delete-key", uid
         )
         inputs = self.encode_inputs("y")
-        return Terminal.enter(command, inputs)
+        Terminal.enter(command, inputs)
 
-    def revoke(self, uid=""):
+    def revoke(self, uid: str):
         """
-        Generates & imports a revocation cert for key matching ``uid``
+        Generates & imports a revocation cert for a key matching ``uid``,
         then returns the revoked key.
         """
         uid = self.key_fingerprint(uid)
@@ -1037,11 +1069,12 @@ class GnuPG:
         self.text_import(revocation_cert)
         return self.text_export(uid)
 
-    def encrypt(self, message="", uid="", *, sign=True, local_user=""):
+    def encrypt(self, message: str, uid: str, *, sign=True, local_user=""):
         """
-        Encrypts ``message`` to key matching ``uid`` & signs with key
-        matching ``local_user`` or defaults to instance key. Optionally,
-        if ``sign`` == False, ``message`` won't be signed.
+        Encrypts ``message`` to the key matching ``uid`` & signs it with
+        a key matching the ``local_user`` UID. ``local_user`` defaults
+        to the instance's key. Optionally, if ``sign`` == False, the
+        ``message`` won't be signed.
         """
         self._reset_daemon() if sign else 0
         uid = self.key_fingerprint(uid)  # avoid wkd lookups
@@ -1062,29 +1095,30 @@ class GnuPG:
         return self.read_output(command, inputs[:-1])
 
     async def auto_encrypt(
-        self, message="", uid="", *, sign=True, local_user=""
+        self, message: str, uid: str, *, sign=True, local_user=""
     ):
         """
-        Queries keyserver before encryption if recipient's ``uid`` key
-        isn't in the local keyring.
+        Queries the keyserver before encryption if the recipient's key
+        matching ``uid`` isn't in the instance's keyring.
         """
         try:
             return self.encrypt(
                 message, uid, sign=sign, local_user=local_user
             )
-        except LookupError as uid:
-            await self.network_import(uid.value)
+        except LookupError as error:
+            await self.network_import(error.uid)
             return self.encrypt(
-                message, uid.value, sign=sign, local_user=local_user
+                message, error.uid, sign=sign, local_user=local_user
             )
 
-    def decrypt(self, message="", *, local_user=""):
+    def decrypt(self, message: str, *, local_user=""):
         """
-        Decrypts ``message`` autodetecting correct key from keyring.
+        Auto-detects the correct key from the instance's keyring to
+        decrypt ``message``.
         """
         self._reset_daemon()
-        fingerprint = self._packet_fingerprint(message)
-        fingerprint = self.key_fingerprint(fingerprint)
+        uid = self._packet_fingerprint(message)
+        uid = self.key_fingerprint(uid)
         command = self.encode_command(
             "--local-user",
             local_user if local_user else self.fingerprint,
@@ -1093,28 +1127,29 @@ class GnuPG:
         )
         inputs = self.encode_inputs(self.user.passphrase, message)
         with Terminal(if_exception=Error.no_signature_key) as terminal:
+            terminal.bus.uid = uid
             terminal.bus.inputs = inputs
             terminal.bus.command = command
             terminal.bus.keys = self.list_keys
-            terminal.bus.fingerprint = fingerprint
             return terminal.enter(command, inputs)
 
-    async def auto_decrypt(self, message="", *, local_user=""):
+    async def auto_decrypt(self, message: str, *, local_user=""):
         """
-        Queries keyserver before decryption if ``message`` signature key
-        isn't in the local keyring.
+        Queries the keyserver before decryption if the key which signed
+        ``message`` isn't in the instance's keyring.
         """
         try:
             return self.decrypt(message, local_user=local_user)
-        except LookupError as uid:
-            await self.network_import(uid.value)
+        except LookupError as error:
+            await self.network_import(error.uid)
             return self.decrypt(message, local_user=local_user)
 
     def sign(self, target="", *, key=False, local_user=""):
         """
-        Signs key matching ``target`` uid with a key matching ``local_user``
-        uid or the instance default. Optionally signs ``target`` message
-        if ``key`` == False.
+        Signs the ``target`` message using a key which matches the
+        ``local_user`` UID, but defaults to the instance's key.
+        Optionally, if ``key`` == True, this method signs a key in the
+        instance's keyring matching the ``target`` UID.
         """
         self._reset_daemon()
         if key.__class__ != bool:  # avoid truthiness
@@ -1128,6 +1163,7 @@ class GnuPG:
                 with_passphrase=True,
             )
             inputs = self.encode_inputs(self.user.passphrase)
+            self.read_output(command, inputs)
         else:
             command = self.encode_command(
                 "--local-user",
@@ -1136,33 +1172,34 @@ class GnuPG:
                 with_passphrase=True,
             )
             inputs = self.encode_inputs(self.user.passphrase, target)[:-1]
-        return self.read_output(command, inputs)
+            return self.read_output(command, inputs)
 
-    def verify(self, message=""):
+    def verify(self, message: str):
         """
-        Verifies signed ``message`` if the corresponding public key is
-        in the local keyring.
+        Verifies the signed ``message`` if the corresponding public key
+        is in the instance's keyring.
         """
-        fingerprint = self._packet_fingerprint(message)
-        fingerprint = self.key_fingerprint(fingerprint)
+        uid = self._packet_fingerprint(message)
+        uid = self.key_fingerprint(uid)
         command = self.encode_command("--verify")
         inputs = self.encode_inputs(message)
         with Terminal(if_exception=Error.unverifiable_message) as terminal:
-            terminal.bus.fingerprint = fingerprint
-            return terminal.enter(command, inputs)
+            terminal.bus.uid = uid
+            terminal.enter(command, inputs)
+            return True
 
-    async def auto_verify(self, message=""):
+    async def auto_verify(self, message: str):
         """
-        Queries keyserver before verifying ``message`` if its signature
-        key isn't in the local keyring.
+        Queries the keyserver before verifying the ``message`` if its
+        signature key isn't in the instance's keyring.
         """
         try:
             return self.verify(message)
-        except LookupError as uid:
-            await self.network_import(uid.value)
+        except LookupError as error:
+            await self.network_import(error.uid)
             return self.verify(message)
 
-    async def network_import(self, uid=""):
+    async def network_import(self, uid: str):
         """
         Imports the key matching ``uid`` from the keyserver.
         """
@@ -1174,25 +1211,25 @@ class GnuPG:
         print(f"downloaded:\n{key}")
         return self.text_import(key)
 
-    def file_import(self, path=""):
+    def file_import(self, path: Union[Path, str]):
         """
         Imports a key from the file located at ``path``.
         """
         with open(path, "r") as keyfile:
-            return self.text_import(keyfile.read())
+            self.text_import(keyfile.read())
 
-    def text_import(self, key=""):
+    def text_import(self, key: str):
         """
-        Imports the ``key`` string into the local keyring.
+        Imports the ``key`` string into the instance's keyring.
         """
         inputs = self.encode_inputs(key)
         command = self.encode_command("--import")
         with Terminal(if_exception=Error.key_isnt_importable) as terminal:
             terminal.bus.key = key
-            terminal.bus.fingerprint = self._packet_fingerprint(key)
-            return terminal.enter(command, inputs, stderr=STDOUT)
+            terminal.bus.uid = self._packet_fingerprint(key)
+            terminal.enter(command, inputs, stderr=STDOUT)
 
-    async def _raw_api_export(self, uid=""):
+    async def _raw_api_export(self, uid: str):
         """
         Uploads the key matching ``uid`` to the keyserver. Returns a json
         string that looks like ->
@@ -1209,18 +1246,18 @@ class GnuPG:
         payload = {"keytext": key}
         return await self.network.post(url, json=payload)
 
-    async def _raw_api_verify(self, payload=""):
+    async def _raw_api_verify(self, payload: str):
         """
         Prompts the keyserver to verify the list of email addresses in
         ``payload``["addresses"] with the api_token in ``payload``["token"].
         The keyserver then sends a confirmation email asking for consent
-        to publish the uid information with the key that was uploaded.
+        to publish the UID information with the key that was uploaded.
         """
         url = self._keyserver_verify_api
         print(f"sending verification to: {url}")
         return await self.network.post(url, json=payload)
 
-    async def network_export(self, uid=""):
+    async def network_export(self, uid: str):
         """
         Exports the key matching ``uid`` to the keyserver.
         """
@@ -1233,19 +1270,19 @@ class GnuPG:
         print(f"check {payload['addresses'][0]} for confirmation.")
         return response
 
-    def file_export(self, path="", uid="", *, secret=False):
+    def file_export(self, path: Union[Path, str], uid: str, *, secret=False):
         """
         Exports the public key matching ``uid`` to the ``path`` directory.
         If ``secret`` == True then exports the secret key that matches
         ``uid``.
         """
         key = self.text_export(uid, secret=secret)
-        fingerprint = self.key_fingerprint(uid)
-        filename = Path(path).absolute() / (fingerprint + ".asc")
+        uid = self.key_fingerprint(uid)
+        filename = Path(path).absolute() / (uid + ".asc")
         with open(filename, "w+") as keyfile:
-            return keyfile.write(key)
+            keyfile.write(key)
 
-    def text_export(self, uid="", *, secret=False):
+    def text_export(self, uid: str, *, secret=False):
         """
         Returns a public key string that matches ``uid``. Optionally,
         returns the secret key as a string that matches ``uid`` if

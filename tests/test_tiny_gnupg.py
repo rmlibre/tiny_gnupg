@@ -26,6 +26,7 @@ import sys
 import pytest
 import asyncio
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from aiohttp import ClientSession
 from aiohttp_socks import ProxyConnector
 
@@ -143,18 +144,19 @@ PzNx/ZogrbmOMOWsTCC1DFycAjCRtueMDG83FVl0zdX0fFR5cZnRdxde+Y6oyZ6u
 """
 
 
-_homedir = Path(PACKAGE_PATH).absolute() / "tiny_gnupg/gpghome"
-_options = _homedir / "gpg2.conf"
-_executable = "/usr/bin/gpg2"
-
-
 @pytest.fixture(scope="module")
 def gpg():
+    global _homedir, _options, _executable
     print("setup".center(15, "-"))
 
     username = "testing_user"
     email = "testing_user@testing.testing"
     passphrase = "test_passphrase"
+
+    tempdir = TemporaryDirectory("testing_tiny_gnupg")
+    _homedir = Path(tempdir.name).absolute()
+    _options = GnuPG._OPTIONS_PATH
+    _executable = GnuPG._EXECUTABLE_PATH
 
     gpg = GnuPG(
         email=email,
@@ -165,19 +167,18 @@ def gpg():
         executable=_executable,
     )
 
-    yield gpg
-    print("teardown".center(18, "-"))
-
-
-def pop(dictionary):
-    return next(iter(dictionary))
+    try:
+        yield gpg
+    finally:
+        print("teardown".center(18, "-"))
+        tempdir.cleanup()
 
 
 async def async_method_runner(gpg):
     connector = gpg.network.Connector()
     assert connector.__class__ == ProxyConnector
-    async with gpg.network.Session(connector=connector) as session:
-        session.__class__ == ClientSession
+    async with gpg.network.Session() as session:
+        assert session.__class__ == ClientSession
 
 
 def test_instance(gpg):
@@ -231,7 +232,7 @@ def test_instance(gpg):
     assert ".onion" in gpg._searchserver
     assert len(gpg.fingerprint) == 40
     assert type(gpg.fingerprint) == str
-    assert gpg.homedir.endswith("gpghome")
+    assert gpg.homedir.endswith("testing_tiny_gnupg")
     assert gpg.user.username == "testing_user"
     assert gpg.executable.endswith("gpg2")
     assert gpg.user.passphrase == "test_passphrase"
@@ -296,72 +297,88 @@ def test_export_import(gpg):
 
 
 def test_isolated_identities(gpg):
-    anon = GnuPG(
-        username="anon_user",
-        email="anonymous@testing.testing",
-        passphrase="rubbish_pw",
-        executable=_executable,
-    )
-    anon.gen_key()
-    anon_uid = anon.fingerprint
-    ### decrypting
-    enc_msg = gpg.encrypt("hi!", anon_uid)
-    msg = anon.decrypt(enc_msg)
-    try:
-        failed = False
-        gpg.decrypt(enc_msg)
-    except LookupError:
-        failed = True
-        """
-        Same user succefully prevented from decrypting message sent to a
-        different identity.
-        """
-    finally:
-        assert failed
-    ### signatures
-    sig_0 = anon.sign("message", local_user=anon_uid)
-    sig_1 = anon.sign("message")
-    try:
-        failed = False
-        gpg.sign("message", local_user=anon_uid)
-    except PermissionError:
-        failed = True
-        """
-        Same user successfully prevented from signing message with the
-        secret key associated with another identity.
-        """
-    finally:
-        assert failed
-    ### encrypting
-    try:
-        failed = False
-        gpg.encrypt("greetings", anon_uid, local_user=anon_uid)
-    except PermissionError:
-        failed = True
-        """
-        Same user successfully prevented from signing an encrypted message
-        with the secret key associated with another identity.
-        """
-    finally:
-        assert failed
-    while True:
+    """
+    Isolated identities do not work as originaly thought. The user must
+    choose unique passwords for each identity. Separating keys into
+    separate home directories helps only if .
+    """
+    with TemporaryDirectory("anon_user") as anon_homedir:
+        homedir = Path(anon_homedir).absolute()
+        anon = GnuPG(
+            username="anon_user",
+            email="anonymous@testing.testing",
+            passphrase="test_passphrase",  # identities are isolated only if
+                                         # their passwords are NOT the same!
+            executable=_executable,
+            homedir=str(homedir),
+        )
+        anon.gen_key()
+        anon_uid = anon.fingerprint
+        gpg.text_import(anon.text_export(anon_uid))
+        anon.text_import(gpg.text_export(gpg.fingerprint))
+        ### decrypting
+        enc_msg = gpg.encrypt("hi!", uid=anon_uid)
+        msg = anon.decrypt(enc_msg)
         try:
-            anon.delete(anon.email)
-        except:
-            break
+            failed = False
+            gpg.decrypt(enc_msg)
+        except LookupError:
+            failed = True
+            """
+            Same user succefully prevented from decrypting message sent to a
+            different identity.
+            """
+        finally:
+            assert failed
+        ### signatures
+        sig_0 = anon.sign("message", local_user=anon_uid)
+        sig_1 = anon.sign("message")
+        try:
+            failed = False
+            gpg.sign("message", local_user=anon_uid)
+        except PermissionError:
+            failed = True
+            """
+            Same user successfully prevented from signing message with the
+            secret key associated with another identity.
+            """
+        finally:
+            assert failed
+        ### encrypting
+        try:
+            failed = False
+            gpg.encrypt("greetings", uid=anon_uid, local_user=anon_uid)
+        except PermissionError:
+            failed = True
+            """
+            Same user successfully prevented from signing an encrypted message
+            with the secret key associated with another identity.
+            """
+        finally:
+            assert failed
+        while True:
+            try:
+                anon.delete(anon.email)
+            except:
+                break
 
 
 def test_cipher(gpg):
     test_email = "support@keys.openpgp.org"
     run(gpg.network_import(test_email))
     message = "\n  twenty\ntwo\narmed\ndogs\nrush\nthe\nkibble  \n\n"
-    for trust_level in range(0, 7):
+    for level in range(0, 7):
         for fingerprint in gpg.list_keys():
             try:
-                gpg.set_key_trust(fingerprint, trust_level)
-            except ValueError as invalid_trust_level:
+                failed = False
+                invalid_trust_level = (1 > level or level > 5)
+                gpg.set_key_trust(fingerprint, level)
+            except ValueError as error:
                 # if 1 > int(trust_level) or 5 < int(trust_level):
                 """Successfully blocked invlaid trust level"""
+                failed = True
+            finally:
+                assert failed if invalid_trust_level else not failed
         encrypted_message_0 = gpg.encrypt(
             message=message,
             uid=gpg.fingerprint,
@@ -508,9 +525,13 @@ def test_networking(gpg):
     # "older" style header formatting, which leads to inconsistent
     # results when handling newer ECC keys.
     try:
+        failed = False
         run(gpg.network_import("nonsense uid data (HOPEFULLY)"))
     except FileNotFoundError:
+        failed = True
         """Successfully failed to retrieve data for bogus query"""
+    finally:
+        assert failed
 
 
 def test_network_concurrency(gpg):
@@ -611,9 +632,13 @@ def test_auto_fetch_methods(gpg):
     assert len(packets_3) == 28
     assert len(packets_4) == 31
     try:
+        failed = False
         gpg._list_packets(20 * "Non-OpenPGP data")
     except:
+        failed = True
         """Successfully failed when invalid data sent for parsing"""
+    finally:
+        assert failed
     ###
     fingerprint_0 = gpg._packet_fingerprint(dev_signed_encrypted_message)
     fingerprint_1 = gpg._packet_fingerprint(dev_encrypted_message)
@@ -692,29 +717,13 @@ def test_revoke(gpg):
 
 
 def test_delete(gpg):
+    test_fingerprint = gpg.fingerprint
     number_of_keys_before_delete = len(gpg.list_keys())
-    gpg.delete(gpg.fingerprint)
-    assert len(gpg.list_keys()) + 1 == number_of_keys_before_delete
-    while True:
-        try:
-            gpg.delete(gpg.email)
-        except:
-            break
-    while True:
-        try:
-            gpg.delete("gonzo.development@protonmail.ch")
-        except:
-            break
-    while True:
-        try:
-            gpg.delete("support@keys.openpgp.org")
-        except:
-            break
-    while True:
-        try:
-            gpg.delete("4826A9293FB8DF4765192455CDD760B5E60DB4F8")
-        except:
-            break
+
+    gpg.delete(test_fingerprint)
+    keyring_after_delete = gpg.list_keys()
+    assert test_fingerprint not in keyring_after_delete
+    assert number_of_keys_before_delete == 1 + len(keyring_after_delete)
 
 
 def test_reset_daemon(gpg):

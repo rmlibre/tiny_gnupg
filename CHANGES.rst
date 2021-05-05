@@ -61,6 +61,45 @@
 ============= 
 
 
+Changes for version 0.7.8 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  Security Alert: Users' separate ``GnuPG`` instance's with the same 
+   home directory, which represent distinct & different secret keys, 
+   can only be considered to represent separate identities during 
+   runtime if the ``passphrase`` for each instance is distinct & 
+   different. Past updates of the package have mentioned separate 
+   identities as if one instance won't be able to access another's 
+   secret keys, and this is **not** true unless their passphrases are 
+   different. This is how GnuPG itself is designed, where all public & 
+   secret keys are stored together in the home directory, & an identity 
+   is more strongly considered to be the current operating system's user. 
+   A more effective way a user can separate identities is by setting a 
+   unique home directory for each identity. However, the GnuPG program 
+   wasn't designed safely as it regards anonymity, so gaining confidence 
+   in its ability to respect more nuanced identity boundaries is dubious 
+   at best. 
+-  The values that are inserted into raised exceptions were renamed to 
+   be declarative of exactly what has been inserted. I.e., instead of 
+   calling all the inserted exception object attributes something as 
+   generic as ``value``, they are now ``inputs``, ``uid``, ``output``, 
+   etc. This helps improve readability & clarity. 
+
+
+Minor Changes 
+------------- 
+
+-  Various documentation improvements & fixes. 
+-  Various code cleanups & refactorings. 
+-  Added type hints to many of the codebase's parameters.
+
+
+
+
 Changes for version 0.7.7 
 ========================= 
 
@@ -68,7 +107,7 @@ Changes for version 0.7.7
 Minor Changes 
 ------------- 
 
--  Some documentation improvements & refactorings.
+-  Some documentation improvements & refactorings. 
 
 
 
@@ -116,7 +155,8 @@ Minor Changes
    imported keys. This option was intended to keep GnuPG from crashing 
    when importing keys which don't have uid information, but it's an 
    unideal hack around the root problem. 
--  Some changes to signatures for a better ux, & various code cleanups. 
+-  Some changes to function signatures for a better ux, & various code 
+   cleanups. 
 
 
 
@@ -130,13 +170,15 @@ Minor Changes
 
 -  The ``homedir``, ``options``, ``executable``, ``_base_command``, 
    & ``_base_passphrase_command`` attributes are now all properties. This 
-   makes keeping their values in-sync even after a user changes a ``GnuPG`` 
+   keeps their values in-sync even after a user changes a ``GnuPG`` 
    instance's configurations. This also backtracks the last update's 
    solution of reseting static values after every mutation, to a 
-   solution which reads attributes live as they're queried. 
+   solution which reads attributes live as they're queried. The reduced
+   efficiency of not using cached values is not noticeable in comparison
+   to the many milliseconds it takes to run any gpg2 command.
 -  Reordering of the methods in the ``GnuPG`` class to better follow a 
    low-level to high-level overall semantic structure, with positional 
-   groupings of methods with related functionalities. 
+   groupings of methods which have related functionalities. 
 -  Some other code refactorings, cleanups & docstring fixes. 
 
 
