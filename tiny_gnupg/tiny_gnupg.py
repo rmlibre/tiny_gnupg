@@ -223,7 +223,7 @@ class Terminal:
     def __enter__(self):
         """
         Opens a context manager which catches execptions that will be
-        run from within the `__exit__` method.
+        handled from within the `__exit__` method.
         """
         return self
 
@@ -261,13 +261,14 @@ class Error:
         "The ``target`` doesn't seem to be valid OpenPGP data."
     )
     _KEY_WITH_UID_ISNT_IN_KEYRING = (
-        "UID '_UID_' isn't in the instance's _SECRET_keyring."
+        "Key with UID '_UID_' isn't in the instance's _SECRET_keyring."
     )
     _SIGNATURES_PUBLIC_KEY_ISNT_IN_KEYRING = (
-        "UID '_UID_' isn't in the instance's keyring."
+        "Key with UID '_UID_' isn't in the instance's keyring."
     )
     _KEY_ISNT_IMPORTABLE = (
-        "Key '_UID_' isn't importable. See https://dev.gnupg.org/T4393."
+        "Key with UID '_UID_' isn't importable. See https://dev.gnupg.o"
+        "rg/T4393."
     )
     _MESSAGE_IS_UNVERIFIABLE = "The ``message`` is unverifiable."
 
@@ -310,7 +311,7 @@ class Error:
             raise error
 
     @classmethod
-    def no_permission(cls, terminal, error: Exception):
+    def no_permission(cls, terminal: Terminal, error: Exception):
         """
         If either the user's passphrase is wrong, or the key they're
         wanting to use isn't owned by their current instance, or the key
@@ -333,7 +334,7 @@ class Error:
             raise warning if (bad_passphrase or missing_key) else error
 
     @classmethod
-    def secret_packets(cls, terminal, error: Exception):
+    def secret_packets(cls, terminal: Terminal, error: Exception):
         """
         If OpenPGP data packets are encrypted it causes an error. This
         method is run after a read failure to inform the user the data
@@ -346,7 +347,7 @@ class Error:
         raise warning if "No secret key" in warning.packets else error
 
     @classmethod
-    def invalid_pgp_packets(cls, terminal, error: Exception):
+    def invalid_pgp_packets(cls, terminal: Terminal, error: Exception):
         """
         If some target data doesn't contain correctly formatted OpenPGP
         data packets it causes an error. This method is run after a read
@@ -364,7 +365,7 @@ class Error:
             raise warning
 
     @classmethod
-    def cannot_list_key(cls, terminal, error: Exception):
+    def cannot_list_key(cls, terminal: Terminal, error: Exception):
         """
         Searching for a UID which isn't contained by any key in the
         instance's keyring causes an error. This method is run after a
@@ -380,7 +381,9 @@ class Error:
         raise warning
 
     @staticmethod
-    def _pull_uid_from_signature_error(terminal, error: Exception):
+    def _pull_uid_from_signature_error(
+        terminal: Terminal, error: Exception
+    ):
         """
         Returns the signing key's UID from the gpg2 error message caused
         by trying to verify a signature without having the corresponding
@@ -392,7 +395,7 @@ class Error:
         return uid[-1] if uid else terminal.bus.uid
 
     @classmethod
-    def no_signature_key(cls, terminal, error: Exception):
+    def no_signature_key(cls, terminal: Terminal, error: Exception):
         """
         Decrypting an OpenPGP message which contains a signature causes
         an error if the public key associated with the signature isn't
@@ -416,7 +419,7 @@ class Error:
             raise warning
 
     @classmethod
-    def unverifiable_message(cls, terminal, error: Exception):
+    def unverifiable_message(cls, terminal: Terminal, error: Exception):
         """
         Both an invalid signature & not having a signature's public key
         in the instance's keyring will cause an error. This method is
@@ -428,7 +431,7 @@ class Error:
         raise warning
 
     @classmethod
-    def key_isnt_importable(cls, terminal, error: Exception):
+    def key_isnt_importable(cls, terminal: Terminal, error: Exception):
         """
         Since GnuPG can't import keys without user ID's, this method is
         run after an import failure to inform the user of this bug in
@@ -461,11 +464,11 @@ class Issue:
         "Trust levels must be between 1 and 5, inclusively (1, 5)."
     )
     _UID_WASNT_LOCATED_ON_THE_KEYSERVER = (
-        "UID '_UID_' wasn't found on the keyserver."
+        "Key with UID '_UID_' wasn't found on the keyserver."
     )
     _INADEQUATE_LENGTH_UID_WAS_GIVEN = (
-        "UID '_UID_' has fewer than the minimum allowed number of "
-        "characters."
+        "Key with UID '_UID_' has fewer than the minimum allowed "
+        "number of characters."
     )
 
     @classmethod
