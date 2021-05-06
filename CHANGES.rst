@@ -61,6 +61,19 @@
 ============= 
 
 
+Changes for version 0.7.9 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Docstring & type annotation fixes. 
+-  Small internal refactorings. 
+
+
+
+
 Changes for version 0.7.8 
 ========================= 
 

@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tiny-gnupg
-Version: 0.7.8
+Version: 0.7.9
 Summary: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 Home-page: https://github.com/rmlibre/tiny_gnupg
 Author: Gonzo Investigative Journalism Agency, LLC
@@ -588,6 +588,19 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         ``Changelog`` 
         ============= 
+        
+        
+        Changes for version 0.7.9 
+        ========================= 
+        
+        
+        Minor Changes 
+        ------------- 
+        
+        -  Docstring & type annotation fixes. 
+        -  Small internal refactorings. 
+        
+        
         
         
         Changes for version 0.7.8 

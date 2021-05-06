@@ -36,8 +36,8 @@ from aiohttp import ClientSession
 from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 from aiocontext import async_contextmanager
-from typing import Any, Hashable, Iterable, Union
 from aiohttp_socks import ProxyConnector, ProxyType
+from typing import Any, Hashable, Iterable, Union, Dict
 
 
 run = asyncio.get_event_loop().run_until_complete
@@ -251,7 +251,7 @@ class Error:
     """
 
     _BAD_PASSPHRASE_OR_MISSING_KEY = (
-        "Passphrase wrong, inexistent key, or invalid rights to access "
+        "Wrong passphrase, inexistent key, or invalid rights to access "
         "secret key."
     )
     _PACKETS_PROTECTED_BY_SECRET_KEY = (
@@ -742,27 +742,27 @@ class GnuPG:
     @property
     def _keyserver_export_api(self):
         """
-        Autoconstruct specific keyserver key upload API URL.
+        Autoconstruct a template keyserver key upload API URL.
         """
         return self._keyserver + "vks/v1/upload"
 
     @property
     def _keyserver_verify_api(self):
         """
-        Autoconstruct specific keyserver key verification API URL.
+        Autoconstruct a template keyserver key verification API URL.
         """
         return self._keyserver + "vks/v1/request-verify"
 
     @property
     def _searchserver(self):
         """
-        Autoconstruct specific keyserver search URL.
+        Autoconstruct a template keyserver search URL.
         """
         return self._keyserver + self._search_prefix
 
     async def _raw_search(self, uid: str):
         """
-        Returns keyserver HTML of the search matching ``uid``.
+        Returns the keyserver's HTML page of a search matching ``uid``.
         """
         if len(uid) < self._MINIMUM_UID_LENGTH:
             raise Issue.inadequate_length_uid_was_given(uid)
@@ -773,7 +773,7 @@ class GnuPG:
 
     async def search(self, uid: str):
         """
-        Returns keyserver URL of the key matching ``uid``.
+        Returns the keyserver's URL of a key matching ``uid``.
         """
         html = await self._raw_search(uid)
         if "We found an entry" not in html:
@@ -1249,7 +1249,9 @@ class GnuPG:
         payload = {"keytext": key}
         return await self.network.post(url, json=payload)
 
-    async def _raw_api_verify(self, payload: str):
+    async def _raw_api_verify(
+        self, payload: Dict[str, Union[str, Dict[str, str]]]
+    ):
         """
         Prompts the keyserver to verify the list of email addresses in
         ``payload``["addresses"] with the api_token in ``payload``["token"].
@@ -1265,10 +1267,10 @@ class GnuPG:
         Exports the key matching ``uid`` to the keyserver.
         """
         response = json.loads(await self._raw_api_export(uid))
-        payload = {
-            "addresses": [self.key_email(uid)],
-            "token": response["token"],
-        }
+        payload = dict(
+            token=response["token"],
+            addresses=[self.key_email(uid)],
+        )
         response = json.loads(await self._raw_api_verify(payload))
         print(f"check {payload['addresses'][0]} for confirmation.")
         return response
@@ -1279,8 +1281,8 @@ class GnuPG:
         If ``secret`` == True then exports the secret key that matches
         ``uid``.
         """
-        key = self.text_export(uid, secret=secret)
         uid = self.key_fingerprint(uid)
+        key = self.text_export(uid, secret=secret)
         filename = Path(path).absolute() / (uid + ".asc")
         with open(filename, "w+") as keyfile:
             keyfile.write(key)

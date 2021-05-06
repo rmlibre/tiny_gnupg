@@ -580,6 +580,19 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 ============= 
 
 
+Changes for version 0.7.9 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Docstring & type annotation fixes. 
+-  Small internal refactorings. 
+
+
+
+
 Changes for version 0.7.8 
 ========================= 
 
