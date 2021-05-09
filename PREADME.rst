@@ -357,19 +357,11 @@ A user can make sure that any connections the gnupg binary makes with the networ
 
 .. code:: python
 
-    user = User( 
+    from tiny_gnupg import GnuPG
     
-        username="username", 
-        
-        email="username@user.net", 
-        
-        passphrase="test_user_passphrase", 
     
-    ) 
-
-    config = GnuPGConfig(torify=True) 
+    gpg = GnuPG(**user_details, torify=True) 
     
-    gpg = GnuPG(user, config=config) 
 
 This is helpful because there are gnupg settings which cause certain commands to do automatic connections to the web. For instance, when encrypting, gnupg may be set to automatically search for the recipient's key on a keyserver if it's not in the local keyring. This doesn't normally effect `tiny_gnupg` because it doesn't use gnupg's networking interface. It ensures Tor connections through the `aiohttp_socks` library. But, if gnupg does make these kinds of connections silently, using torify can prevent a user's IP address from being inadvertently revealed. 
 
@@ -402,7 +394,7 @@ _`More Commands`
 
     ) 
 
-    config = GnuPGConfig(executable=PATH_TO_GPG_BINARY) 
+    config = GnuPGConfig(executable=PATH_TO_GPG_BINARY, torify=True) 
 
     gpg = BaseGnuPG(user, config=config) 
     
@@ -495,8 +487,6 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     
     gpg = GnuPG( 
     
-        username="username", 
-        
         email="username@user.net", 
         
         passphrase="test_user_passphrase", 

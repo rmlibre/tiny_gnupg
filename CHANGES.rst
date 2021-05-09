@@ -61,6 +61,18 @@
 ============= 
 
 
+Changes for version 0.8.1 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Documentation improvements & typo fixes.
+
+
+
+
 Changes for version 0.8.0 
 ========================= 
 

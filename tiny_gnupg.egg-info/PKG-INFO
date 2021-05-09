@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tiny-gnupg
-Version: 0.8.0
+Version: 0.8.1
 Summary: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 Home-page: https://github.com/rmlibre/tiny_gnupg
 Author: Gonzo Investigative Journalism Agency, LLC
@@ -372,19 +372,11 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         .. code:: python
         
-            user = User( 
+            from tiny_gnupg import GnuPG
             
-                username="username", 
-                
-                email="username@user.net", 
-                
-                passphrase="test_user_passphrase", 
             
-            ) 
-        
-            config = GnuPGConfig(torify=True) 
+            gpg = GnuPG(**user_details, torify=True) 
             
-            gpg = GnuPG(user, config=config) 
         
         This is helpful because there are gnupg settings which cause certain commands to do automatic connections to the web. For instance, when encrypting, gnupg may be set to automatically search for the recipient's key on a keyserver if it's not in the local keyring. This doesn't normally effect `tiny_gnupg` because it doesn't use gnupg's networking interface. It ensures Tor connections through the `aiohttp_socks` library. But, if gnupg does make these kinds of connections silently, using torify can prevent a user's IP address from being inadvertently revealed. 
         
@@ -417,7 +409,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
             ) 
         
-            config = GnuPGConfig(executable=PATH_TO_GPG_BINARY) 
+            config = GnuPGConfig(executable=PATH_TO_GPG_BINARY, torify=True) 
         
             gpg = BaseGnuPG(user, config=config) 
             
@@ -510,8 +502,6 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
             
             gpg = GnuPG( 
             
-                username="username", 
-                
                 email="username@user.net", 
                 
                 passphrase="test_user_passphrase", 
@@ -545,10 +535,6 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         
         .. _key revocations: https://gitlab.com/hagrid-keyserver/hagrid/issues/137
-        
-        
-        
-        
         
         
         
@@ -614,6 +600,18 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         ``Changelog`` 
         ============= 
+        
+        
+        Changes for version 0.8.1 
+        ========================= 
+        
+        
+        Minor Changes 
+        ------------- 
+        
+        -  Documentation improvements & typo fixes.
+        
+        
         
         
         Changes for version 0.8.0 

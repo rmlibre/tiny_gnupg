@@ -24,7 +24,7 @@ with open("PREADME.rst", "r") as preadme:
 
 
 with open("CHANGES.rst", "r") as changelog:
-    long_description += f"\n\n\n\n{changelog.read()}"
+    long_description += changelog.read()
 
 
 with open("README.rst", "w+") as readme:
