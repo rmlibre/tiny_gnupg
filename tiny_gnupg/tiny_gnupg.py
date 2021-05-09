@@ -836,8 +836,8 @@ class Issue:
         "Key with UID '_UID_' wasn't found on the keyserver."
     )
     _INADEQUATE_LENGTH_UID_WAS_GIVEN = (
-        "Key with UID '_UID_' has fewer than the minimum allowed "
-        "number of characters."
+        "Key UID '_UID_' has fewer than the minimum allowed number of "
+        "characters."
     )
 
     @classmethod
