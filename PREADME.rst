@@ -73,7 +73,7 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
 
 
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-    
+
     gpg = GnuPG( 
     
         username="username", 
@@ -83,7 +83,7 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
         passphrase="test_user_passphrase", 
         
         executable=PATH_TO_GPG_BINARY, 
-        
+    
     ) 
 
 
@@ -93,7 +93,7 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     
     # functionalities. 
     
-    gpg.gen_key() 
+    gpg.generate_key() 
 
 
     # Now this fingerprint can be used with arbitrary gpg2 commands. 
@@ -299,23 +299,19 @@ _`Networking Examples`
             return await response.text() 
 
 
-    PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-    
-    gpg = GnuPG( 
+    gpg = GnuPG(
     
         username="username", 
         
         email="username@user.net", 
         
         passphrase="test_user_passphrase", 
-        
-        executable=PATH_TO_GPG_BINARY, 
-        
-    ) 
-
-    gpg.gen_key() 
     
-    url = gpg._keyserver_export_api 
+    ) 
+    
+    gpg.generate_key() 
+    
+    url = gpg.keyserver._key_export_api_url 
     
     payload = {"keytext": gpg.text_export(uid=gpg.fingerprint)} 
 
@@ -361,21 +357,19 @@ A user can make sure that any connections the gnupg binary makes with the networ
 
 .. code:: python
 
-    PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-    
-    gpg = GnuPG( 
+    user = User( 
     
         username="username", 
         
         email="username@user.net", 
         
         passphrase="test_user_passphrase", 
-        
-        torify=True, 
-        
-        executable=PATH_TO_GPG_BINARY, 
-        
+    
     ) 
+
+    config = GnuPGConfig(torify=True) 
+    
+    gpg = GnuPG(user, config=config) 
 
 This is helpful because there are gnupg settings which cause certain commands to do automatic connections to the web. For instance, when encrypting, gnupg may be set to automatically search for the recipient's key on a keyserver if it's not in the local keyring. This doesn't normally effect `tiny_gnupg` because it doesn't use gnupg's networking interface. It ensures Tor connections through the `aiohttp_socks` library. But, if gnupg does make these kinds of connections silently, using torify can prevent a user's IP address from being inadvertently revealed. 
 
@@ -390,6 +384,28 @@ _`More Commands`
 ---------------- 
 
 .. code:: python
+
+    # An instance can also be constructed from lower-level objects -> 
+
+    from tiny_gnupg import BaseGnuPG, User, GnuPGConfig, run 
+
+
+    PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
+    
+    user = User( 
+    
+        username="username", 
+        
+        email="username@user.net", 
+        
+        passphrase="test_user_passphrase", 
+
+    ) 
+
+    config = GnuPGConfig(executable=PATH_TO_GPG_BINARY) 
+
+    gpg = BaseGnuPG(user, config=config) 
+    
 
     # It turns out that the encrypt() method automatically signs the 
     
@@ -406,40 +422,44 @@ _`More Commands`
         sign=False,  # no sender identification 
         
     ) 
-
-
+    
+    
     # It also turns out, a user can sign things independently from 
     
     # encrypting -> 
     
-    signed_data = gpg.sign(target="maybe a hash of a file?") 
-
-
-    # Or sign a key in the package's keyring -> 
+    message_to_verify = "maybe a hash of a file?"
     
-    gpg.sign("alice@email.domain", key=True) 
-
-
-    # And verify data as well -> 
+    signed_data = gpg.sign(target=message_to_verify) 
+    
+    assert message_to_verify == gpg.decrypt(signed_data)
+    
+    
+    # And verify a signature without checking the signed value -> 
     
     gpg.verify(message=signed_data)  # throws if invalid 
     
-
+    
+    # Or sign a key in the package's keyring -> 
+    
+    gpg.sign("alice@email.domain", key=True) 
+    
+    
     # Importing key files is also a thing -> 
     
     path_to_file = "/home/user/keyfiles/" 
     
     gpg.file_import(path=path_to_file + "alices_key.asc") 
     
-
+    
     # As well as exporting public keys -> 
     
-    gpg.file_export(path=path_to_file, uid=gpg.email) 
+    gpg.file_export(path=path_to_file, uid=gpg.user.email) 
     
-
+    
     # And secret keys, but really, keep those safe! -> 
     
-    gpg.file_export(path=path_to_file, uid=gpg.email, secret=True) 
+    gpg.file_export(path=path_to_file, uid=gpg.user.email, secret=True) 
     
 
     # The keys don't have to be exported to a file. Instead they can 
@@ -469,10 +489,10 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 .. code:: python
 
     from tiny_gnupg import GnuPG, run 
-
-
+    
+    
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-
+    
     gpg = GnuPG( 
     
         username="username", 
@@ -510,6 +530,7 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
 
 .. _key revocations: https://gitlab.com/hagrid-keyserver/hagrid/issues/137
+
 
 
 

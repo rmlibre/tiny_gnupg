@@ -11,7 +11,10 @@
 
 __all__ = [
     "GnuPG",
+    "BaseGnuPG",
     "User",
+    "GnuPGConfig",
+    "Keyserver",
     "Network",
     "Terminal",
     "MessageBus",
@@ -37,9 +40,10 @@ from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 from aiocontext import async_contextmanager
 from aiohttp_socks import ProxyConnector, ProxyType
-from typing import Any, Hashable, Iterable, Union, Dict
+from typing import Any, Hashable, Iterable, Union, Dict, Callable
 
 
+NoneType = type(None)
 run = asyncio.get_event_loop().run_until_complete
 
 
@@ -48,10 +52,144 @@ class User:
     A small type for holding `GnuPG` user instance information.
     """
 
-    def __init__(self, username: str, email: str, *, passphrase: str):
+    def __init__(self, *, username: str = "", email: str, passphrase: str):
         self.email = email
         self.username = username
         self.passphrase = passphrase
+
+
+class GnuPGConfig:
+    """
+    A small type for setting & managing `GnuPG` configuration objects
+    which store & provide access to the path strings to the system's
+    gpg2 binary, home directory, & .conf file, whether or not to run
+    commands over Tor with torify, & some static settings.
+    """
+
+    _MINIMUM_UID_LENGTH = 6
+    _DEFAULT_HOME_DIRECTORY_PERMISSIONS = 0o700
+    _DEFAULT_HOME_DIRECTORY = Path(__file__).absolute().parent / "gpghome"
+    _DEFAULT_OPTIONS_PATH = _DEFAULT_HOME_DIRECTORY / "gpg2.conf"
+    _DEFAULT_EXECUTABLE_PATH = Path("/usr/bin/gpg2").absolute()
+
+    def __init__(
+        self,
+        *,
+        homedir: Union[Path, str, NoneType] = None,
+        options: Union[Path, str, NoneType] = None,
+        executable: Union[Path, str, NoneType] = None,
+        torify: bool = False,
+    ):
+        """
+        Sets the object's configurations.
+        """
+        self.set_torify(torify)
+        self.set_homedir(homedir)
+        self.set_options(options)
+        self.set_executable(executable)
+
+    def set_torify(self, torify: bool):
+        """
+        Takes a boolean ``torify`` value which will be prepended to
+        terminal commands so that any connections a command may lead to
+        will be routed over Tor.
+        """
+        if torify.__class__ != bool:
+            raise Issue.torify_keyword_argument_isnt_a_bool(torify)
+        self._torify = torify
+
+    @classmethod
+    def _set_permissions_recursively(
+        cls, path: Union[Path, str], permissions: int
+    ):
+        """
+        Takes a `pathlib.Path` object & recursively sets each sub- file
+        & directory's ``permissions``.
+        """
+        for subpath in path.iterdir():
+            os.chmod(subpath, permissions)
+            if subpath.is_dir():
+                cls._set_permissions_recursively(subpath, permissions)
+
+    def _set_homedir_permissions(
+        self, permissions: Union[int, NoneType] = None
+    ):
+        """
+        Set safer permissions on the home directory.
+        """
+        path = self._homedir
+        if permissions == None:  # Maybe 0o000 is a valid setting
+            permissions = self._DEFAULT_HOME_DIRECTORY_PERMISSIONS
+        os.chmod(path, permissions)
+        self._set_permissions_recursively(path, permissions)
+
+    def set_homedir(self, path: Union[Path, str, NoneType] = None):
+        """
+        Initialize a home directory path object for gpg2 data to be
+        saved.
+        """
+        if path:
+            path = Path(path).absolute()
+        else:
+            path = self._DEFAULT_HOME_DIRECTORY
+        if not path.is_dir():
+            raise Issue.home_directory_doesnt_exist(path)
+        self._homedir = path
+        self._set_homedir_permissions()
+
+    def set_options(self, path: Union[Path, str, NoneType] = None):
+        """
+        Initialize a path object to the gpg2 .conf config file.
+        """
+        if path:
+            path = Path(path).absolute()
+        else:
+            path = self._DEFAULT_OPTIONS_PATH
+        if not path.is_file():
+            raise Issue.dot_conf_file_doesnt_exist(path)
+        self._options = path
+
+    def set_executable(self, path: Union[Path, str, NoneType] = None):
+        """
+        Initialize a path object to the gpg2 executable binary.
+        """
+        if path:
+            path = Path(path).absolute()
+        else:
+            path = self._DEFAULT_EXECUTABLE_PATH
+        if not path.is_file():
+            raise Issue.gpg2_executable_doesnt_exist(path)
+        self._executable = path
+
+    @property
+    def torify(self):
+        """
+        Returns the boolean value which instructs terminal commands
+        whether or not to prepend a torify call.
+        """
+        return bool(self._torify)
+
+    @property
+    def homedir(self):
+        """
+        Returns the string home directory where gpg2 data is saved to &
+        loaded from.
+        """
+        return str(self._homedir)
+
+    @property
+    def options(self):
+        """
+        Returns the string path to the .conf config file for gpg2.
+        """
+        return str(self._options)
+
+    @property
+    def executable(self):
+        """
+        Returns the string path to the gpg2 executable binary file.
+        """
+        return str(self._executable)
 
 
 class Network:
@@ -59,33 +197,56 @@ class Network:
     A simple type to create & manage connections to Tor & the internet.
     """
 
-    _PORT = 80
-    _TOR_PORT = 9050
+    _DEFAULT_PORT: int = 80
+    _DEFAULT_TOR_PORT: int = 9050
     _ProxyType = ProxyType
     _ClientSession = ClientSession
     _ProxyConnector = ProxyConnector
 
-    def __init__(self, *, port=_PORT, tor_port=_TOR_PORT):
-        self.port = port
-        self.tor_port = tor_port
+    def __init__(
+        self,
+        *,
+        port: Union[int, NoneType] = None,
+        tor_port: Union[int, NoneType] = None,
+    ):
+        """
+        Sets the instance's port values.
+        """
+        self._set_port(port)
+        self._set_tor_port(tor_port)
+
+    def _set_port(self, port: Union[int, NoneType] = None):
+        """
+        Sets the receiving port used by the contacted resources on the
+        web.
+        """
+        self.port = int(port) if port else self._DEFAULT_PORT
+
+    def _set_tor_port(self, port: Union[int, NoneType] = None):
+        """
+        Sets the Tor SOCKS5 proxy port.
+        """
+        self.tor_port = int(port) if port else self._DEFAULT_TOR_PORT
 
     def Connector(
         self, *, proxy_type=None, host=None, port=None, rdns=True, **kw
     ):
         """
-        Autoconstruct an aiohttp_socks.ProxyConnector instance.
+        Autoconstruct an `aiohttp_socks.ProxyConnector` instance.
         """
         return self._ProxyConnector(
             proxy_type=proxy_type if proxy_type else self._ProxyType.SOCKS5,
             host=host if host else "localhost",
-            port=port if port else self.tor_port,
-            rdns=rdns,
+            port=int(port) if port else self.tor_port,
+            rdns=bool(rdns),
             **kw,
         )
 
-    def Session(self, *, connector: ProxyConnector = None, **kw):
+    def Session(
+        self, *, connector: Union[ProxyConnector, NoneType] = None, **kw
+    ):
         """
-        Autoconstruct an aiohttp.ClientSession instance.
+        Autoconstruct an `aiohttp.ClientSession` instance.
         """
         connector = connector if connector else self.Connector()
         return self._ClientSession(connector=connector, **kw)
@@ -93,7 +254,7 @@ class Network:
     @async_contextmanager
     async def context_get(self, url: str, **kw):
         """
-        Opens a aiohttp.ClientSession.get context manager.
+        Opens an `aiohttp.ClientSession.get` context manager.
         """
         try:
             session = await self.Session().__aenter__()
@@ -104,7 +265,7 @@ class Network:
     @async_contextmanager
     async def context_post(self, url: str, **kw):
         """
-        Opens a aiohttp.ClientSession.post context manager.
+        Opens an `aiohttp.ClientSession.post` context manager.
         """
         try:
             session = await self.Session().__aenter__()
@@ -114,17 +275,196 @@ class Network:
 
     async def get(self, url: str, **kw):
         """
-        Returns text of an aiohttp.ClientSession.get request.
+        Returns text of an `aiohttp.ClientSession.get` request.
         """
         async with self.context_get(url, **kw) as response:
             return await response.text()
 
     async def post(self, url: str, **kw):
         """
-        Returns text of an aiohttp.ClientSession.post request.
+        Returns text of an `aiohttp.ClientSession.post` request.
         """
         async with self.context_post(url, **kw) as response:
             return await response.text()
+
+
+class Keyserver:
+    """
+    Creates & manages connections, queries & responses to a keyserver
+    over Tor.
+    """
+
+    _DEFAULT_RELATIVE_KEY_EXPORT_API_URL = "vks/v1/upload"
+    _DEFAULT_RELATIVE_KEY_VERIFICATION_API_URL = "vks/v1/request-verify"
+    _DEFAULT_SEARCH_PREFIX = "search?q="
+    _DEFAULT_KEYSERVER_HOSTNAME = (
+        "http://zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmba"
+        "d.onion"
+    )
+
+    @staticmethod
+    def _quick_cleanup_for_url(string: str, *, tokens="\n\t\r\\ "):
+        """
+        Removes whitespace & problem ``tokens`` from a url ``string``
+        as well as trailing slashes, then returns the new string.
+        """
+        for token in tokens:
+            string = string.replace(token, "")
+        return string.strip("/")
+
+    def __init__(
+        self,
+        hostname: Union[str, NoneType] = None,
+        *,
+        network: Union[Network, NoneType] = None,
+        search_prefix: Union[str, NoneType] = None,
+    ):
+        """
+        Set network variables for adaptable implementations.
+        """
+        self._set_network(network)
+        self._set_hostname(hostname)
+        self._set_search_prefix(search_prefix)
+
+    def _set_network(self, network: Union[Network, NoneType]):
+        """
+        Sets & assures the instance's network object is a valid subclass
+        of this module's `Network` class.
+        """
+        if network == None:
+            self.network = Network()
+        elif not issubclass(network.__class__, Network):
+            raise Issue.invalid_network_object_type(network)
+        else:
+            self.network = network
+
+    def _set_hostname(self, hostname: Union[str, NoneType]):
+        """
+        Set's the instance's hostname url string to the keyserver on the
+        web.
+        """
+        hostname = (
+            hostname if hostname else self._DEFAULT_KEYSERVER_HOSTNAME
+        )
+        self._raw_hostname = self._quick_cleanup_for_url(hostname)
+
+    def _set_search_prefix(self, prefix: Union[str, NoneType]):
+        """
+        Sets the instance's search prefix string. It's appended to the
+        hostname string & it instructs the keyserver that the text
+        following the prefix string will be a search term.
+        """
+        prefix = (
+            prefix if prefix else self._DEFAULT_SEARCH_PREFIX
+        )
+        self._search_prefix = self._quick_cleanup_for_url(prefix)
+
+    @property
+    def _hostname(self):
+        """
+        Autoconstruct keyserver URL with adaptable port number.
+        """
+        return f"{self._raw_hostname}:{self.network.port}/"
+
+    @property
+    def _key_export_api_url(self):
+        """
+        Autoconstruct a template keyserver key upload API URL.
+        """
+        relative_path = self._DEFAULT_RELATIVE_KEY_EXPORT_API_URL
+        return self._hostname + relative_path
+
+    @property
+    def _key_verification_api_url(self):
+        """
+        Autoconstruct a template keyserver key verification API URL.
+        """
+        relative_path = self._DEFAULT_RELATIVE_KEY_VERIFICATION_API_URL
+        return self._hostname + relative_path
+
+    @property
+    def _search_template(self):
+        """
+        Autoconstruct a template keyserver search URL.
+        """
+        return self._hostname + self._search_prefix
+
+    async def _raw_search(self, uid: str):
+        """
+        Returns the keyserver's HTML page of a search matching ``uid``.
+        """
+        if len(uid) < GnuPGConfig._MINIMUM_UID_LENGTH:
+            raise Issue.inadequate_length_uid_was_given(uid)
+        uid = uid.replace("@", "%40").replace(" ", "%20")
+        url = self._search_template + uid
+        print(f"querying: {url}")
+        return await self.network.get(url)
+
+    async def search(self, uid: str):
+        """
+        Returns the keyserver's URL of a key matching ``uid``.
+        """
+        html = await self._raw_search(uid)
+        if "We found an entry" not in html:
+            return ""
+        url = self._raw_hostname
+        html = html[html.find(url) :]
+        return html[: html.find(">")].strip("'").strip('"')
+
+    async def download_key(self, uid: str):
+        """
+        Downloads & returns the key matching ``uid`` from the keyserver.
+        """
+        key_url = await self.search(uid)
+        if not key_url:
+            raise Issue.uid_wasnt_found_on_the_keyserver(uid)
+        print(f"key location: {key_url}")
+        key = await self.network.get(key_url)
+        print(f"downloaded:\n{key}")
+        return key
+
+    async def _raw_api_export(self, key: str):
+        """
+        Uploads the ``key`` to the keyserver. Returns a json string that
+        looks like ->
+        '''{
+            "key-fpr": key_fingerprint,
+            "status": {email_address_on_key: "unpublished"},
+            "token": api_token,
+        }'''
+        """
+        url = self._key_export_api_url
+        print(f"contacting: {url}")
+        print(f"exporting:\n{key}")
+        payload = {"keytext": key}
+        return await self.network.post(url, json=payload)
+
+    async def _raw_api_verify(
+        self, payload: Dict[str, Union[str, Dict[str, str]]]
+    ):
+        """
+        Prompts the keyserver to verify the list of email addresses in
+        ``payload``["addresses"] with the api_token in ``payload``["token"].
+        The keyserver then sends a confirmation email asking for consent
+        to publish the UID information with the key that was uploaded.
+        """
+        url = self._key_verification_api_url
+        print(f"sending verification to: {url}")
+        return await self.network.post(url, json=payload)
+
+    async def upload_key(self, email_address: str, key: str):
+        """
+        Exports the ``key`` to the keyserver & asks for it to be bound
+        to the given ``email_address``.
+        """
+        response = json.loads(await self._raw_api_export(key))
+        payload = dict(
+            token=response["token"],
+            addresses=[email_address],
+        )
+        response = json.loads(await self._raw_api_verify(payload))
+        print(f"check {email_address} for confirmation.")
+        return response
 
 
 class MessageBus:
@@ -208,7 +548,12 @@ class Terminal:
         )
         return result.decode() if decode else result
 
-    def __init__(self, *, if_exception=None, finally_run=None):
+    def __init__(
+        self,
+        *,
+        if_exception: Union[Callable, NoneType] = None,
+        finally_run: Union[Callable, NoneType] = None,
+    ):
         """
         Inserts methods into the instance which will be run after the
         class' context manager, one if an execption occurs, & the other
@@ -447,18 +792,42 @@ class Error:
 class Issue:
     """
     This type helps improve readability & concern separation within the
-    GnuPG class when general issues are encountered.
+    `GnuPG` class when general issues are encountered.
     """
 
+    _USER_OBJECT_MUST_BE_A_VALID_SUBCLASS = (
+        "issubclass(``user``.__class__, User) != True. A _TYPE_ was "
+        "given instead."
+    )
+    _CONFIG_OBJECT_MUST_BE_A_VALID_SUBCLASS = (
+        "issubclass(``config``.__class__, GnuPGConfig) != True. A "
+        "_TYPE_ was given instead."
+    )
+    _NETWORK_OBJECT_MUST_BE_A_VALID_SUBCLASS = (
+        "issubclass(``network``.__class__, Network) != True. A "
+        "_TYPE_ was given instead."
+    )
+    _KEYSERVER_OBJECT_MUST_BE_A_VALID_SUBCLASS = (
+        "issubclass(``keyserver``.__class__, GnuPGConfig) != True. A "
+        "_TYPE_ was given instead."
+    )
     _HOME_DIRECTORY_DOESNT_EXIST = (
-        "The specified home directory doesn't exist, which is going to "
-        "be a problem."
+        "The specified home directory, '_DIR_', doesn't exist."
+    )
+    _DOT_CONF_FILE_DOESNT_EXIST = (
+        "The specified .conf file, '_FILE_', doesn't exist."
+    )
+    _GPG2_EXECUTABLE_DOESNT_EXIST = (
+        "The specified gpg2 executable file, '_FILE_', doesn't exist."
+    )
+    _TORIFY_KEYWORD_ARGUMENT_ISNT_A_BOOL = (
+        "type(``torify``) != bool. A _TYPE_ was given instead."
     )
     _KEY_KEYWORD_ARGUMENT_ISNT_A_BOOL = (
-        "type(``key``) != bool, _TYPE_ was given."
+        "type(``key``) != bool. A _TYPE_ was given instead."
     )
     _SECRET_KEYWORD_ARGUMENT_ISNT_A_BOOL = (
-        "type(``secret``) != bool, _TYPE_ was given."
+        "type(``secret``) != bool. A _TYPE_ was given instead."
     )
     _TRUST_LEVELS_MUST_BE_BETWEEN_1_AND_5 = (
         "Trust levels must be between 1 and 5, inclusively (1, 5)."
@@ -472,17 +841,91 @@ class Issue:
     )
 
     @classmethod
-    def home_directory_doesnt_exist(cls):
+    def invalid_user_object_type(cls, user: Any):
+        """
+        User objects are strictly limited to being instances of classes
+        for which `issubclass(user.__class__, User) == True`.
+        """
+        user_type = str(type(user))
+        issue = cls._USER_OBJECT_MUST_BE_A_VALID_SUBCLASS
+        return TypeError(issue.replace("_TYPE_", user_type))
+
+    @classmethod
+    def invalid_config_object_type(cls, config: Any):
+        """
+        Configuration objects are strictly limited to being instances of
+        classes for which `issubclass(config.__class__, GnuPGConfig) ==
+        True`.
+        """
+        config_type = str(type(config))
+        issue = cls._CONFIG_OBJECT_MUST_BE_A_VALID_SUBCLASS
+        return TypeError(issue.replace("_TYPE_", config_type))
+
+    @classmethod
+    def invalid_network_object_type(cls, network: Any):
+        """
+        Network objects are strictly limited to being instances of
+        classes for which `issubclass(network.__class__, Network) ==
+        True`.
+        """
+        network_type = str(type(network))
+        issue = cls._NETWORK_OBJECT_MUST_BE_A_VALID_SUBCLASS
+        return TypeError(issue.replace("_TYPE_", network_type))
+
+    @classmethod
+    def invalid_keyserver_object_type(cls, keyserver: Any):
+        """
+        Keyserver objects are strictly limited to being instances of
+        classes for which `issubclass(keyserver.__class__, Keyserver)
+        == True`.
+        """
+        keyserver_type = str(type(keyserver))
+        issue = cls._KEYSERVER_OBJECT_MUST_BE_A_VALID_SUBCLASS
+        return TypeError(issue.replace("_TYPE_", keyserver_type))
+
+    @classmethod
+    def home_directory_doesnt_exist(cls, path: Path):
         """
         If an instance's home directory doesn't exist on the users file-
         system, then the associated data & files created by the binary
         will have nowhere to be saved. This will cause issues. This
         method returns the issue for the user in a `FileNotFoundError`.
         """
-        return FileNotFoundError(cls._HOME_DIRECTORY_DOESNT_EXIST)
+        issue = cls._HOME_DIRECTORY_DOESNT_EXIST
+        return FileNotFoundError(issue.replace("_DIR_", str(path)))
 
     @classmethod
-    def secret_keyword_argument_isnt_a_bool(cls, secret: bool):
+    def dot_conf_file_doesnt_exist(cls, path: Path):
+        """
+        If an instance's .conf file doesn't exist on the user's file-
+        system, then gpg2 commands will cause errors & crashes. This
+        method returns the issue for the user in a `FileNotFoundError`.
+        """
+        issue = cls._DOT_CONF_FILE_DOESNT_EXIST
+        return FileNotFoundError(issue.replace("_FILE_", str(path)))
+
+    @classmethod
+    def gpg2_executable_doesnt_exist(cls, path: Path):
+        """
+        If an instance's gpg2 executable file doesn't exist on the
+        user's file-system, then the entire program won't function. This
+        method returns the issue for the user in a `FileNotFoundError`.
+        """
+        issue = cls._GPG2_EXECUTABLE_DOESNT_EXIST
+        return FileNotFoundError(issue.replace("_FILE_", str(path)))
+
+    @classmethod
+    def torify_keyword_argument_isnt_a_bool(cls, torify: Any):
+        """
+        Reducing ambiguity is why the ``torify`` keyword argument is
+        strictly only allowed to be a boolean value.
+        """
+        torify_type = str(type(torify))
+        issue = cls._TORIFY_KEYWORD_ARGUMENT_ISNT_A_BOOL
+        return TypeError(issue.replace("_TYPE_", torify_type))
+
+    @classmethod
+    def secret_keyword_argument_isnt_a_bool(cls, secret: Any):
         """
         There should be no abiguity when instructing the gpg2 binary to
         do anything related to secret keys. So, if a user passes a non-
@@ -495,7 +938,7 @@ class Issue:
         return TypeError(issue.replace("_TYPE_", secret_type))
 
     @classmethod
-    def key_keyword_argument_isnt_a_bool(cls, key: bool):
+    def key_keyword_argument_isnt_a_bool(cls, key: Any):
         """
         There should be no abiguity when instructing the gpg2 binary to
         do anything related to secret keys & signing other keys. So, if
@@ -540,9 +983,9 @@ class Issue:
         return FileNotFoundError(issue.replace("_UID_", uid))
 
 
-class GnuPG:
+class BaseGnuPG:
     """
-    GnuPG - A linux-specific, small, simple & intuitive wrapper for
+    BaseGnuPG - A linux-specific, small, simple & intuitive wrapper for
     creating, using and managing GnuPG's Ed25519 curve keys. This class
     favors reducing code size & complexity with strong, bias defaults
     over flexibility in the API. It's designed to turn the complex,
@@ -550,139 +993,111 @@ class GnuPG:
 
     Usage Example:
 
-    gpg = GnuPG(
+    from tiny_gnupg import BaseGnuPG, User, GnuPGConfig
+
+    user = User(
         username="user3121",
         email="spicy.salad@email.org",
         passphrase="YesAllBeautifulCats",
-        executable="/usr/bin/gpg2",
     )
-    gpg.gen_key()
+    config = GnuPGConfig(
+        homedir="/path/to/custom/home-directory",  # Optional
+        options="/path/to/custom/gpg2.conf",  # Optional
+        executable="/path/to/binary/gpg2",  # Defaults to /usr/bin/gpg2
+        torify=False,  # Optional
+    )
+
+    gpg = BaseGnuPG(user, config=config)
+    gpg.generate_key()
     assert gpg.fingerprint in gpg.list_keys()
     run(gpg.network_export(gpg.fingerprint))
 
     message = "Henlo fren!"
     uid = "my.friends@email.address"
 
-    assert run(gpg.search(uid))
+    assert run(gpg.keyserver.search(uid))
     encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
+
+    assert gpg.decrypt(encrypted_message) == "Henlo fren!"
+
+
+    from hashlib import sha3_256
+
+    with open("DesignDocument.cad", "rb") as document:
+        digest = sha3_256(document.read()).hexdigest()
+        signed_document = gpg.sign(digest)
+
+    assert gpg.verify(signed_document)
     """
 
-    _HOME_DIRECTORY = Path(__file__).absolute().parent / "gpghome"
-    _OPTIONS_PATH = _HOME_DIRECTORY / "gpg2.conf"
-    _EXECUTABLE_PATH = Path("/usr/bin/gpg2").absolute()
-    _MINIMUM_UID_LENGTH = 6
-    _SEARCH_PREFIX = "search?q="
-    _KEYSERVER = (
-        "http://zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmba"
-        "d.onion"
-    )
-
     def __init__(
-        self,
-        *,
-        username: str,
-        email: str,
-        passphrase: str,
-        torify=False,
-        homedir=None,
-        options=None,
-        executable=None,
+        self, user: User, *, config: Union[GnuPGConfig, NoneType] = None
     ):
         """
         Initialize an instance intended to create, manage, or represent
         a single key in the local instance GnuPG keyring.
         """
-        self._torify = bool(torify)
-        self.set_homedir(homedir)
-        self.set_options(options)
-        self.set_executable(executable)
+        self._set_user(user)
+        self._set_config(config)
+        self.keyserver = Keyserver()
         self._reset_daemon()
-        self.user = User(username, email, passphrase=passphrase)
-        self._set_fingerprint(email)
-        self._set_network_variables()
+        self._set_fingerprint(self.user.email)
 
-    @classmethod
-    def _set_permissions_recursively(
-        cls, path: Union[Path, str], permissions=0o700
-    ):
+    def _set_user(self, user: User):
         """
-        Takes a `pathlib.Path` object & recursively sets each sub- file
-        & directory's ``permissions``.
+        Sets the user object which stores & provides access to the
+        user's username, email, & passphrase information.
         """
-        for subpath in path.iterdir():
-            os.chmod(subpath, permissions)
-            if subpath.is_dir():
-                cls._set_permissions_recursively(subpath, permissions)
+        if not issubclass(user.__class__, User):
+            raise Issue.invalid_user_object_type(user)
+        self.user = user
 
-    def _set_homedir_permissions(self, homedir: Union[Path, str] = None):
+    def _set_config(self, config: Union[GnuPGConfig, NoneType]):
         """
-        Set safer permissions on the home directory.
+        Sets the config object which stores & provides access to the
+        system's gpg2 binary, home directory, .conf file, & the torify
+        boolean flag.
         """
-        homedir = Path(homedir).absolute() if homedir else self._homedir
-        if not homedir.exists():
-            raise Issue.home_directory_doesnt_exist()
-        os.chmod(homedir, 0o700)
-        self._set_permissions_recursively(homedir, 0o700)
-
-    def set_homedir(self, path: Union[Path, str] = None):
-        """
-        Initialize a home directory for gpg2 data to be saved.
-        """
-        path = Path(path).absolute() if path else self._HOME_DIRECTORY
-        self._homedir = path
-        self._set_homedir_permissions()
-
-    def set_options(self, path: Union[Path, str] = None):
-        """
-        Initialize a path to the gpg2 config file.
-        """
-        path = Path(path).absolute() if path else self._OPTIONS_PATH
-        self._options = path
-
-    def set_executable(self, path: Union[Path, str] = None):
-        """
-        Initialize a path to the gpg2 executable binary.
-        """
-        path = Path(path).absolute() if path else self._EXECUTABLE_PATH
-        self._executable = path
+        if config == None:
+            self.config = GnuPGConfig()
+        elif not issubclass(config.__class__, GnuPGConfig):
+            raise Issue.invalid_config_object_type(config)
+        else:
+            self.config = config
 
     @property
-    def homedir(self):
+    def keyserver(self):
         """
-        Returns the string home directory where gpg2 data is saved.
+        Returns the instance's pointer to its keyserver object.
         """
-        return str(self._homedir)
+        return self._keyserver
 
-    @property
-    def options(self):
+    @keyserver.setter
+    def keyserver(self, obj: Keyserver):
         """
-        Returns the string path to the gpg2 config file.
+        Makes sure the keyserver object's type is a subclass of this
+        module's `Keyserver` class.
         """
-        return str(self._options)
-
-    @property
-    def executable(self):
-        """
-        Returns the string path to the gpg2 executable binary.
-        """
-        return str(self._executable)
+        if not issubclass(obj.__class__, Keyserver):
+            raise Issue.invalid_keyserver_object_type(obj)
+        self._keyserver = obj
 
     @property
     def _base_command(self):
         """
         Construct the default command used to call gpg2.
         """
-        torify = ["torify"] if self._torify else []
+        torify = ["torify"] if self.config.torify else []
         return torify + [
-            self.executable,
+            self.config.executable,
             "--yes",
             "--batch",
             "--quiet",
             "--no-tty",
             "--options",
-            self.options,
+            self.config.options,
             "--homedir",
-            self.homedir,
+            self.config.homedir,
         ]
 
     @property
@@ -698,89 +1113,29 @@ class GnuPG:
             "0",
         ]
 
+    @property
+    def fingerprint(self):
+        """
+        Returns the instance key's main fingerprint.
+        """
+        return self._fingerprint
+
+    @fingerprint.setter
+    def fingerprint(self, uid: str):
+        """
+        Checks the instance's keyring for the fingerprint of the key
+        which matches the ``uid``.
+        """
+        self._fingerprint = self.key_fingerprint(uid)
+
     def _set_fingerprint(self, uid: str):
         """
         Populate ``fingerprint`` attribute for persistent user.
         """
         try:
-            self.fingerprint = self.key_fingerprint(uid)
+            self.fingerprint = uid
         except:
-            self.fingerprint = ""
-
-    @staticmethod
-    def _quick_cleanup_for_url(string, *, tokens="\n\t\r\\ "):
-        """
-        Removes whitespace & problem ``tokens`` from a url ``string``
-        as well as trailing slashes, then returns the new string.
-        """
-        for token in tokens:
-            string = string.replace(token, "")
-        return string.strip("/")
-
-    def _set_network_variables(
-        self,
-        *,
-        port=Network._PORT,
-        tor_port=Network._TOR_PORT,
-        keyserver=_KEYSERVER,
-        search_prefix=_SEARCH_PREFIX,
-    ):
-        """
-        Set network variables for adaptable implementations.
-        """
-        self.network = Network(port=port, tor_port=tor_port)
-        self._keyserver_host = self._quick_cleanup_for_url(keyserver)
-        self._search_prefix = self._quick_cleanup_for_url(search_prefix)
-
-    @property
-    def _keyserver(self):
-        """
-        Autoconstruct keyserver URL with adaptable port number.
-        """
-        return f"{self._keyserver_host}:{self.network.port}/"
-
-    @property
-    def _keyserver_export_api(self):
-        """
-        Autoconstruct a template keyserver key upload API URL.
-        """
-        return self._keyserver + "vks/v1/upload"
-
-    @property
-    def _keyserver_verify_api(self):
-        """
-        Autoconstruct a template keyserver key verification API URL.
-        """
-        return self._keyserver + "vks/v1/request-verify"
-
-    @property
-    def _searchserver(self):
-        """
-        Autoconstruct a template keyserver search URL.
-        """
-        return self._keyserver + self._search_prefix
-
-    async def _raw_search(self, uid: str):
-        """
-        Returns the keyserver's HTML page of a search matching ``uid``.
-        """
-        if len(uid) < self._MINIMUM_UID_LENGTH:
-            raise Issue.inadequate_length_uid_was_given(uid)
-        uid = uid.replace("@", "%40").replace(" ", "%20")
-        url = self._searchserver + uid
-        print(f"querying: {url}")
-        return await self.network.get(url)
-
-    async def search(self, uid: str):
-        """
-        Returns the keyserver's URL of a key matching ``uid``.
-        """
-        html = await self._raw_search(uid)
-        if "We found an entry" not in html:
-            return ""
-        url = self._keyserver_host
-        html = html[html.find(url) :]
-        return html[: html.find(">") - 1]
+            self._fingerprint = ""
 
     def encode_command(
         self, *options: Iterable[str], with_passphrase=False, manual=False
@@ -821,10 +1176,16 @@ class GnuPG:
         Resets the gpg-agent daemon.
         """
         kill_command = [
-            "gpgconf", "--homedir", self.homedir, "--kill", "gpg-agent"
+            "gpgconf",
+            "--homedir",
+            self.config.homedir,
+            "--kill",
+            "gpg-agent",
         ]
         Terminal.enter(kill_command)
-        start_command = ["gpg-agent", "--homedir", self.homedir, "--daemon"]
+        start_command = [
+            "gpg-agent", "--homedir", self.config.homedir, "--daemon"
+        ]
         Terminal.enter(start_command)
 
     def _add_subkeys(self, uid: str):
@@ -864,7 +1225,7 @@ class GnuPG:
         )
         self.read_output(command, inputs, stderr=STDOUT)
 
-    def gen_key(self):
+    def generate_key(self):
         """
         Generates a set of ed25519 keys with isolated roles:
         Main Key    - Certification
@@ -993,22 +1354,22 @@ class GnuPG:
         """
         Returns the email address on the key matching ``uid``.
         """
-        if len(uid) < self._MINIMUM_UID_LENGTH:
+        if len(uid) < self.config._MINIMUM_UID_LENGTH:
             raise Issue.inadequate_length_uid_was_given(uid)
-        key_metadata = self._raw_list_keys(uid).replace(" ", "")
+        key_metadata = self._raw_list_keys(uid)
         for line in key_metadata.split("\n"):
             if "@" not in line or "uid" not in line:
                 continue
-            line = line[-line[::-1].find("]") :]
-            if "<" in line:
-                line = line[-line[::-1].find("<") : -1]
-            return line
+            email = line.rstrip().split(" ")[-1]
+            if "<" in email:
+                email = email[1:-1]
+            return email
 
     def key_fingerprint(self, uid: str):
         """
         Returns the fingerprint of the key matching ``uid``.
         """
-        if len(uid) < self._MINIMUM_UID_LENGTH:
+        if len(uid) < self.config._MINIMUM_UID_LENGTH:
             raise Issue.inadequate_length_uid_was_given(uid)
         return next(iter(self.list_keys(uid)))
 
@@ -1016,7 +1377,7 @@ class GnuPG:
         """
         Returns the current trust level of the key matching ``uid``.
         """
-        if len(uid) < self._MINIMUM_UID_LENGTH:
+        if len(uid) < self.config._MINIMUM_UID_LENGTH:
             raise Issue.inadequate_length_uid_was_given(uid)
         key = self._raw_list_keys(uid).replace(" ", "")
         trust = key[key.find("\nuid[") + 5 :]
@@ -1202,25 +1563,6 @@ class GnuPG:
             await self.network_import(error.uid)
             return self.verify(message)
 
-    async def network_import(self, uid: str):
-        """
-        Imports the key matching ``uid`` from the keyserver.
-        """
-        key_url = await self.search(uid)
-        if not key_url:
-            raise Issue.uid_wasnt_found_on_the_keyserver(uid)
-        print(f"key location: {key_url}")
-        key = await self.network.get(key_url)
-        print(f"downloaded:\n{key}")
-        return self.text_import(key)
-
-    def file_import(self, path: Union[Path, str]):
-        """
-        Imports a key from the file located at ``path``.
-        """
-        with open(path, "r") as keyfile:
-            self.text_import(keyfile.read())
-
     def text_import(self, key: str):
         """
         Imports the ``key`` string into the instance's keyring.
@@ -1232,60 +1574,19 @@ class GnuPG:
             terminal.bus.uid = self._packet_fingerprint(key)
             terminal.enter(command, inputs, stderr=STDOUT)
 
-    async def _raw_api_export(self, uid: str):
+    def file_import(self, path: Union[Path, str]):
         """
-        Uploads the key matching ``uid`` to the keyserver. Returns a json
-        string that looks like ->
-        '''{
-            "key-fpr": self.key_fingerprint(uid),
-            "status": {self.key_email(uid): "unpublished"},
-            "token": api_token,
-        }'''
+        Imports a key from the file located at ``path``.
         """
-        key = self.text_export(uid)
-        url = self._keyserver_export_api
-        print(f"contacting: {url}")
-        print(f"exporting:\n{key}")
-        payload = {"keytext": key}
-        return await self.network.post(url, json=payload)
+        with open(path, "r") as keyfile:
+            self.text_import(keyfile.read())
 
-    async def _raw_api_verify(
-        self, payload: Dict[str, Union[str, Dict[str, str]]]
-    ):
+    async def network_import(self, uid: str):
         """
-        Prompts the keyserver to verify the list of email addresses in
-        ``payload``["addresses"] with the api_token in ``payload``["token"].
-        The keyserver then sends a confirmation email asking for consent
-        to publish the UID information with the key that was uploaded.
+        Imports the key matching ``uid`` from the keyserver.
         """
-        url = self._keyserver_verify_api
-        print(f"sending verification to: {url}")
-        return await self.network.post(url, json=payload)
-
-    async def network_export(self, uid: str):
-        """
-        Exports the key matching ``uid`` to the keyserver.
-        """
-        response = json.loads(await self._raw_api_export(uid))
-        payload = dict(
-            token=response["token"],
-            addresses=[self.key_email(uid)],
-        )
-        response = json.loads(await self._raw_api_verify(payload))
-        print(f"check {payload['addresses'][0]} for confirmation.")
-        return response
-
-    def file_export(self, path: Union[Path, str], uid: str, *, secret=False):
-        """
-        Exports the public key matching ``uid`` to the ``path`` directory.
-        If ``secret`` == True then exports the secret key that matches
-        ``uid``.
-        """
-        uid = self.key_fingerprint(uid)
-        key = self.text_export(uid, secret=secret)
-        filename = Path(path).absolute() / (uid + ".asc")
-        with open(filename, "w+") as keyfile:
-            keyfile.write(key)
+        key = await self.keyserver.download_key(uid)
+        self.text_import(key)
 
     def text_export(self, uid: str, *, secret=False):
         """
@@ -1305,4 +1606,97 @@ class GnuPG:
         else:
             command = self.encode_command("-a", "--export", uid)
             return Terminal.enter(command)
+
+    def file_export(
+        self, path: Union[Path, str], uid: str, *, secret=False
+    ):
+        """
+        Exports the public key matching ``uid`` to the ``path`` directory.
+        If ``secret`` == True then exports the secret key that matches
+        ``uid``.
+        """
+        uid = self.key_fingerprint(uid)
+        key = self.text_export(uid, secret=secret)
+        filename = Path(path).absolute() / (uid + ".asc")
+        with open(filename, "w+") as keyfile:
+            keyfile.write(key)
+
+    async def network_export(self, uid: str):
+        """
+        Exports the key matching ``uid`` to the keyserver.
+        """
+        key = self.text_export(uid)
+        email_address = self.key_email(uid)
+        return await self.keyserver.upload_key(email_address, key)
+
+
+class GnuPG(BaseGnuPG):
+    """
+    An alternate `BaseGnuPG` constructor interface. Its purpose is to
+    simplify the user experience by removing the need to import any
+    other types from this module to initialize an instance.
+
+    `GnuPG` - A linux-specific, small, simple & intuitive wrapper for
+    creating, using and managing GnuPG's Ed25519 curve keys. This class
+    favors reducing code size & complexity with strong, bias defaults
+    over flexibility in the API. It's designed to turn the complex,
+    legacy, but powerful GnuPG system into a fun tool to develop with.
+
+    Usage Example:
+
+    from tiny_gnupg import GnuPG
+
+    gpg = GnuPG(
+        username="user3121",
+        email="spicy.salad@email.org",
+        passphrase="YesAllBeautifulCats",
+        executable="/path/to/binary/gpg2",  # Defaults to /usr/bin/gpg2
+    )
+    gpg.generate_key()
+    assert gpg.fingerprint in gpg.list_keys()
+    run(gpg.network_export(gpg.fingerprint))
+
+    message = "Henlo fren!"
+    uid = "my.friends@email.address"
+
+    assert run(gpg.keyserver.search(uid))
+    encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
+
+    assert gpg.decrypt(encrypted_message) == "Henlo fren!"
+
+
+    from hashlib import sha3_256
+
+    with open("DesignDocument.cad", "rb") as document:
+        digest = sha3_256(document.read()).hexdigest()
+        signed_document = gpg.sign(digest)
+
+    assert gpg.verify(signed_document)
+    """
+
+    def __init__(
+        self,
+        *,
+        username: str,
+        email: str,
+        passphrase: str,
+        homedir: Union[Path, str, NoneType] = None,
+        options: Union[Path, str, NoneType] = None,
+        executable: Union[Path, str, NoneType] = None,
+        torify: bool = False,
+    ):
+        """
+        Allows users to construct a `BaseGnuPG` instance without needing
+        to know about, or import, the specific types this module uses to
+        semantically organize & separate the concerns of different areas
+        of the codebase.
+        """
+        user = User(username=username, email=email, passphrase=passphrase)
+        config = GnuPGConfig(
+            homedir=homedir,
+            options=options,
+            executable=executable,
+            torify=torify,
+        )
+        super().__init__(user=user, config=config)
 

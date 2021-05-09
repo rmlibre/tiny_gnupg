@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: tiny-gnupg
-Version: 0.7.9
+Version: 0.8.0
 Summary: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
 Home-page: https://github.com/rmlibre/tiny_gnupg
 Author: Gonzo Investigative Journalism Agency, LLC
@@ -8,6 +8,11 @@ Author-email: gonzo.development@protonmail.ch
 Maintainer: Gonzo Investigative Journalism Agency, LLC
 Maintainer-email: gonzo.development@protonmail.ch
 License: GPLv3
+Download-URL: https://pypi.org/project/tiny-gnupg/
+Project-URL: Source, https://github.com/rmlibre/tiny_gnupg
+Project-URL: Tracker, https://github.com/rmlibre/tiny_gnupg/issues
+Project-URL: Changelog, https://github.com/rmlibre/tiny_gnupg/blob/master/CHANGES.rst
+Project-URL: Documentation, https://github.com/rmlibre/tiny_gnupg/blob/master/README.rst
 Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed25519 ECC keys.
         ==============================================================================
         
@@ -83,7 +88,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         
             PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-            
+        
             gpg = GnuPG( 
             
                 username="username", 
@@ -93,7 +98,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
                 passphrase="test_user_passphrase", 
                 
                 executable=PATH_TO_GPG_BINARY, 
-                
+            
             ) 
         
         
@@ -103,7 +108,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
             
             # functionalities. 
             
-            gpg.gen_key() 
+            gpg.generate_key() 
         
         
             # Now this fingerprint can be used with arbitrary gpg2 commands. 
@@ -309,23 +314,19 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
                     return await response.text() 
         
         
-            PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-            
-            gpg = GnuPG( 
+            gpg = GnuPG(
             
                 username="username", 
                 
                 email="username@user.net", 
                 
                 passphrase="test_user_passphrase", 
-                
-                executable=PATH_TO_GPG_BINARY, 
-                
-            ) 
-        
-            gpg.gen_key() 
             
-            url = gpg._keyserver_export_api 
+            ) 
+            
+            gpg.generate_key() 
+            
+            url = gpg.keyserver._key_export_api_url 
             
             payload = {"keytext": gpg.text_export(uid=gpg.fingerprint)} 
         
@@ -371,21 +372,19 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         .. code:: python
         
-            PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-            
-            gpg = GnuPG( 
+            user = User( 
             
                 username="username", 
                 
                 email="username@user.net", 
                 
                 passphrase="test_user_passphrase", 
-                
-                torify=True, 
-                
-                executable=PATH_TO_GPG_BINARY, 
-                
+            
             ) 
+        
+            config = GnuPGConfig(torify=True) 
+            
+            gpg = GnuPG(user, config=config) 
         
         This is helpful because there are gnupg settings which cause certain commands to do automatic connections to the web. For instance, when encrypting, gnupg may be set to automatically search for the recipient's key on a keyserver if it's not in the local keyring. This doesn't normally effect `tiny_gnupg` because it doesn't use gnupg's networking interface. It ensures Tor connections through the `aiohttp_socks` library. But, if gnupg does make these kinds of connections silently, using torify can prevent a user's IP address from being inadvertently revealed. 
         
@@ -400,6 +399,28 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         ---------------- 
         
         .. code:: python
+        
+            # An instance can also be constructed from lower-level objects -> 
+        
+            from tiny_gnupg import BaseGnuPG, User, GnuPGConfig, run 
+        
+        
+            PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
+            
+            user = User( 
+            
+                username="username", 
+                
+                email="username@user.net", 
+                
+                passphrase="test_user_passphrase", 
+        
+            ) 
+        
+            config = GnuPGConfig(executable=PATH_TO_GPG_BINARY) 
+        
+            gpg = BaseGnuPG(user, config=config) 
+            
         
             # It turns out that the encrypt() method automatically signs the 
             
@@ -416,40 +437,44 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
                 sign=False,  # no sender identification 
                 
             ) 
-        
-        
+            
+            
             # It also turns out, a user can sign things independently from 
             
             # encrypting -> 
             
-            signed_data = gpg.sign(target="maybe a hash of a file?") 
-        
-        
-            # Or sign a key in the package's keyring -> 
+            message_to_verify = "maybe a hash of a file?"
             
-            gpg.sign("alice@email.domain", key=True) 
-        
-        
-            # And verify data as well -> 
+            signed_data = gpg.sign(target=message_to_verify) 
+            
+            assert message_to_verify == gpg.decrypt(signed_data)
+            
+            
+            # And verify a signature without checking the signed value -> 
             
             gpg.verify(message=signed_data)  # throws if invalid 
             
-        
+            
+            # Or sign a key in the package's keyring -> 
+            
+            gpg.sign("alice@email.domain", key=True) 
+            
+            
             # Importing key files is also a thing -> 
             
             path_to_file = "/home/user/keyfiles/" 
             
             gpg.file_import(path=path_to_file + "alices_key.asc") 
             
-        
+            
             # As well as exporting public keys -> 
             
-            gpg.file_export(path=path_to_file, uid=gpg.email) 
+            gpg.file_export(path=path_to_file, uid=gpg.user.email) 
             
-        
+            
             # And secret keys, but really, keep those safe! -> 
             
-            gpg.file_export(path=path_to_file, uid=gpg.email, secret=True) 
+            gpg.file_export(path=path_to_file, uid=gpg.user.email, secret=True) 
             
         
             # The keys don't have to be exported to a file. Instead they can 
@@ -479,10 +504,10 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         .. code:: python
         
             from tiny_gnupg import GnuPG, run 
-        
-        
+            
+            
             PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
-        
+            
             gpg = GnuPG( 
             
                 username="username", 
@@ -520,6 +545,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         
         .. _key revocations: https://gitlab.com/hagrid-keyserver/hagrid/issues/137
+        
         
         
         
@@ -588,6 +614,41 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
         
         ``Changelog`` 
         ============= 
+        
+        
+        Changes for version 0.8.0 
+        ========================= 
+        
+        
+        Major Changes 
+        ------------- 
+        
+        -  The new ``GnuPGConfig`` & ``Keyserver`` classes were extracted from 
+           the ``GnuPG`` class. ``GnuPGConfig`` holds onto each instance's path 
+           strings to the system resources (like the gpg2 binary, the .conf 
+           file, & the home directory), as well as other static constants &
+           instance specific settings (like the torify boolean flag). And, the 
+           ``Keyserver`` class separates the Tor networking & key upload, 
+           download, & searching logic. 
+        -  The ``GnuPG`` class was given a super class, ``BaseGnuPG``, which is 
+           initialized using ``User`` & ``GnuPGConfig`` objects instead of the 
+           strings & booleans which have until now been used to initialize a 
+           ``GnuPG`` instance.  This allows users to choose between initializing 
+           instances using the package's higher-level types or python built-in 
+           types. 
+        -  The ``gen_key`` method of ``GnuPG`` & ``BaseGnuPG`` was changed to 
+           ``generate_key``. 
+        
+        
+        Minor Changes 
+        ------------- 
+        
+        -  Docstring, documentation & type annotation fixes. 
+        -  Improved the clarity of error messages & the UX of error handling. 
+        -  Improved various GnuPG terminal output parsing logics. 
+        -  Heavy factorings to improve clarity & better organize the codebase. 
+        
+        
         
         
         Changes for version 0.7.9 
@@ -1895,6 +1956,7 @@ Description: tiny_gnupg - A small-as-possible solution for handling GnuPG ed2551
               them to retrieve the resulting terminal output.
         
         .. _aiohttp docs: https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+        
         
         
         

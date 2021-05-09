@@ -9,10 +9,19 @@
 #
 
 
-__all__ = ["GnuPG", "Network", "Terminal", "run"]
+__all__ = [
+    "GnuPG",
+    "BaseGnuPG",
+    "User",
+    "GnuPGConfig",
+    "Keyserver",
+    "Network",
+    "Terminal",
+    "run",
+]
 
 
-__version__ = "0.7.9"
+__version__ = "0.8.0"
 
 
 __license__ = "GPLv3"

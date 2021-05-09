@@ -35,7 +35,7 @@ PACKAGE_PATH = str(Path(__file__).absolute().parent.parent)
 sys.path.append(PACKAGE_PATH)
 
 
-from tiny_gnupg import GnuPG, run
+from tiny_gnupg import *
 
 
 legacy_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -155,8 +155,8 @@ def gpg():
 
     tempdir = TemporaryDirectory("testing_tiny_gnupg")
     _homedir = Path(tempdir.name).absolute()
-    _options = GnuPG._OPTIONS_PATH
-    _executable = GnuPG._EXECUTABLE_PATH
+    _options = GnuPGConfig._DEFAULT_OPTIONS_PATH
+    _executable = GnuPGConfig._DEFAULT_EXECUTABLE_PATH
 
     gpg = GnuPG(
         email=email,
@@ -175,9 +175,9 @@ def gpg():
 
 
 async def async_method_runner(gpg):
-    connector = gpg.network.Connector()
+    connector = gpg.keyserver.network.Connector()
     assert connector.__class__ == ProxyConnector
-    async with gpg.network.Session() as session:
+    async with gpg.keyserver.network.Session() as session:
         assert session.__class__ == ClientSession
 
 
@@ -188,7 +188,7 @@ def test_instance(gpg):
         except:
             break
     try:
-        gpg._set_homedir_permissions("/ridiculous_root_directory_not_real")
+        gpg.config.set_homedir("/ridiculous_root_directory_not_real")
     except FileNotFoundError:
         "Successfully failed to change permissions on an invalid dir. "
         "We refrain from testing on, or making, a priveleged folder "
@@ -199,42 +199,43 @@ def test_instance(gpg):
             "permissions."
         )
 
-    gpg.gen_key()
-    test_gpg = GnuPG(
+    gpg.generate_key()
+    user = User(
         email=gpg.user.email,
         username=gpg.user.username,
         passphrase=gpg.user.passphrase,
+    )
+    config = GnuPGConfig(
         homedir=_homedir,
         options=_options,
         executable=_executable,
     )
-    test_gpg.gen_key()
+    test_gpg = BaseGnuPG(user, config=config)
+    test_gpg.generate_key()
     assert gpg.user.username == test_gpg.user.username
     assert gpg.user.email == test_gpg.user.email
     assert gpg.user.passphrase == test_gpg.user.passphrase
-    assert gpg.network.port == test_gpg.network.port
-    assert gpg.network.tor_port == test_gpg.network.tor_port
-    assert gpg.homedir == test_gpg.homedir
-    assert gpg.executable == test_gpg.executable
+    assert gpg.keyserver.network.port == test_gpg.keyserver.network.port
+    assert gpg.keyserver.network.tor_port == test_gpg.keyserver.network.tor_port
+    assert gpg.config.homedir == test_gpg.config.homedir
+    assert gpg.config.executable == test_gpg.config.executable
     run(async_method_runner(gpg))
-    assert gpg._search_prefix == test_gpg._search_prefix
-    assert gpg._keyserver == test_gpg._keyserver
-    assert str(gpg.network.port) in gpg._keyserver
-    assert gpg._keyserver_export_api == test_gpg._keyserver_export_api
-    assert gpg._keyserver_verify_api == test_gpg._keyserver_verify_api
-    assert gpg._searchserver == test_gpg._searchserver
+    assert gpg.keyserver._search_prefix == test_gpg.keyserver._search_prefix
+    assert gpg.keyserver._hostname == test_gpg.keyserver._hostname
+    assert str(gpg.keyserver.network.port) in gpg.keyserver._hostname
+    assert gpg.keyserver._search_template == test_gpg.keyserver._search_template
     assert gpg._base_command == test_gpg._base_command
     assert gpg._base_passphrase_command == test_gpg._base_passphrase_command
     ###
-    assert gpg.network.port == 80
-    assert gpg.network.tor_port == 9050
-    assert ".onion" in gpg._keyserver
-    assert ".onion" in gpg._searchserver
+    assert gpg.keyserver.network.port == 80
+    assert gpg.keyserver.network.tor_port == 9050
+    assert ".onion" in gpg.keyserver._hostname
+    assert ".onion" in gpg.keyserver._search_template
     assert len(gpg.fingerprint) == 40
     assert type(gpg.fingerprint) == str
-    assert gpg.homedir.endswith("testing_tiny_gnupg")
+    assert gpg.config.homedir.endswith("testing_tiny_gnupg")
     assert gpg.user.username == "testing_user"
-    assert gpg.executable.endswith("gpg2")
+    assert gpg.config.executable.endswith("gpg2")
     assert gpg.user.passphrase == "test_passphrase"
     assert gpg.user.email == "testing_user@testing.testing"
     assert gpg.fingerprint in gpg.list_keys()
@@ -304,15 +305,17 @@ def test_isolated_identities(gpg):
     """
     with TemporaryDirectory("anon_user") as anon_homedir:
         homedir = Path(anon_homedir).absolute()
-        anon = GnuPG(
+
+        user = User(
             username="anon_user",
             email="anonymous@testing.testing",
             passphrase="test_passphrase",  # identities are isolated only if
                                          # their passwords are NOT the same!
-            executable=_executable,
-            homedir=str(homedir),
         )
-        anon.gen_key()
+        config = GnuPGConfig(homedir=str(homedir), executable=_executable)
+        anon = BaseGnuPG(user, config=config)
+
+        anon.generate_key()
         anon_uid = anon.fingerprint
         gpg.text_import(anon.text_export(anon_uid))
         anon.text_import(gpg.text_export(gpg.fingerprint))
@@ -430,14 +433,15 @@ def test_cipher(gpg):
     email = "test_sender@testing.testing"
     passphrase = "test_sender_passphrase"
 
-    sender = GnuPG(
+    user = User(
         email=email,
         username=username,
         passphrase=passphrase,
-        homedir=_homedir,
-        executable=_executable,
     )
-    sender.gen_key()
+    config = GnuPGConfig(homedir=_homedir, executable=_executable)
+    sender = BaseGnuPG(user, config=config)
+
+    sender.generate_key()
     sender_key = sender.list_keys(sender.fingerprint)
     sender_pkey = sender.text_export(sender.fingerprint)
     sender_skey = sender.text_export(sender.fingerprint, secret=True)
@@ -458,7 +462,7 @@ def test_cipher(gpg):
 
 
 def test_file_io(gpg):
-    path = Path(gpg.homedir).absolute()
+    path = Path(gpg.config.homedir).absolute()
     file_path = str(path / f"{gpg.fingerprint}.asc")
     key = gpg.text_export(gpg.fingerprint)
     gpg.file_export(path, gpg.fingerprint)
@@ -469,12 +473,12 @@ def test_file_io(gpg):
 def test_networking(gpg):
     dev_email = "gonzo.development@protonmail.ch"
     dev_fingerprint = "31FDCC4F9961AFAC522A9D41AE2B47FA1EF44F0A"
-    key_url = run(gpg.search(dev_email))
+    key_url = run(gpg.keyserver.search(dev_email))
     assert "\n" not in key_url
     assert " " not in key_url
     assert "<" not in key_url
     assert ">" not in key_url
-    key = run(gpg.network.get(key_url))
+    key = run(gpg.keyserver.network.get(key_url))
     gpg.text_import(key)
     assert gpg.list_keys(dev_email)
     fingerprint = gpg.key_fingerprint(dev_email)
@@ -495,9 +499,9 @@ def test_networking(gpg):
     finally:
         assert len(gpg.list_keys(dev_email)) == 1
     run(gpg.network_export(gpg.fingerprint))
-    test_key_url = run(gpg.search(gpg.fingerprint))
+    test_key_url = run(gpg.keyserver.search(gpg.fingerprint))
     local_key = gpg.text_export(gpg.fingerprint)
-    network_key = run(gpg.network.get(test_key_url))
+    network_key = run(gpg.keyserver.network.get(test_key_url))
     assert local_key != network_key  # removed and/or reencoded uids
     try:
         failed = False
@@ -537,11 +541,11 @@ def test_network_concurrency(gpg):
     async def looper(gpg, uid):
         tasks = []
         for i in range(2):
-            tasks.append(asyncio.ensure_future(gpg.search(uid)))
+            tasks.append(asyncio.ensure_future(gpg.keyserver.search(uid)))
         return tasks
 
     uid = "support@keys.openpgp.org"
-    url = run(gpg.search(uid))
+    url = run(gpg.keyserver.search(uid))
     urls = run(gather_looper(gpg, uid))
     assert url.strip()
     for link in urls:
@@ -562,7 +566,7 @@ def test_key_signing(gpg):
 
 
 def test_packet_parsing(gpg):
-    signature = gpg.sign("test")
+    signature = gpg.sign("testing")
     signed_encrypted_message = gpg.encrypt("test", gpg.fingerprint)
     encrypted_message = gpg.encrypt("test", gpg.fingerprint, sign=False)
     gpg_key = gpg.text_export(gpg.fingerprint)

@@ -61,6 +61,41 @@
 ============= 
 
 
+Changes for version 0.8.0 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  The new ``GnuPGConfig`` & ``Keyserver`` classes were extracted from 
+   the ``GnuPG`` class. ``GnuPGConfig`` holds onto each instance's path 
+   strings to the system resources (like the gpg2 binary, the .conf 
+   file, & the home directory), as well as other static constants &
+   instance specific settings (like the torify boolean flag). And, the 
+   ``Keyserver`` class separates the Tor networking & key upload, 
+   download, & searching logic. 
+-  The ``GnuPG`` class was given a super class, ``BaseGnuPG``, which is 
+   initialized using ``User`` & ``GnuPGConfig`` objects instead of the 
+   strings & booleans which have until now been used to initialize a 
+   ``GnuPG`` instance.  This allows users to choose between initializing 
+   instances using the package's higher-level types or python built-in 
+   types. 
+-  The ``gen_key`` method of ``GnuPG`` & ``BaseGnuPG`` was changed to 
+   ``generate_key``. 
+
+
+Minor Changes 
+------------- 
+
+-  Docstring, documentation & type annotation fixes. 
+-  Improved the clarity of error messages & the UX of error handling. 
+-  Improved various GnuPG terminal output parsing logics. 
+-  Heavy factorings to improve clarity & better organize the codebase. 
+
+
+
+
 Changes for version 0.7.9 
 ========================= 
 
@@ -1366,6 +1401,7 @@ Major Changes
       them to retrieve the resulting terminal output.
 
 .. _aiohttp docs: https://docs.aiohttp.org/en/stable/client_advanced.html#client-session
+
 
 
 
