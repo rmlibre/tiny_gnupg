@@ -123,7 +123,12 @@ class GnuPGConfig:
         os.chmod(path, permissions)
         self._set_permissions_recursively(path, permissions)
 
-    def set_homedir(self, path: Union[Path, str, NoneType] = None):
+    def set_homedir(
+        self,
+        path: Union[Path, str, NoneType] = None,
+        *,
+        permissions: Union[int, NoneType] = None,
+    ):
         """
         Initialize a home directory path object for gpg2 data to be
         saved.
@@ -135,7 +140,7 @@ class GnuPGConfig:
         if not path.is_dir():
             raise Issue.home_directory_doesnt_exist(path)
         self._homedir = path
-        self._set_homedir_permissions()
+        self._set_homedir_permissions(permissions)
 
     def set_options(self, path: Union[Path, str, NoneType] = None):
         """
@@ -996,7 +1001,7 @@ class BaseGnuPG:
     from tiny_gnupg import BaseGnuPG, User, GnuPGConfig
 
     user = User(
-        username="user3121",
+        username="user3121",  # Optional username
         email="spicy.salad@email.org",
         passphrase="YesAllBeautifulCats",
     )
@@ -1018,7 +1023,7 @@ class BaseGnuPG:
     assert run(gpg.keyserver.search(uid))
     encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
 
-    assert gpg.decrypt(encrypted_message) == "Henlo fren!"
+    assert friends_gpg.decrypt(encrypted_message) == "Henlo fren!"
 
 
     from hashlib import sha3_256
@@ -1027,7 +1032,7 @@ class BaseGnuPG:
         digest = sha3_256(document.read()).hexdigest()
         signed_document = gpg.sign(digest)
 
-    assert gpg.verify(signed_document)
+    assert digest == gpg.decrypt(signed_document)
     """
 
     def __init__(
@@ -1124,7 +1129,8 @@ class BaseGnuPG:
     def fingerprint(self, uid: str):
         """
         Checks the instance's keyring for the fingerprint of the key
-        which matches the ``uid``.
+        which matches the ``uid`` & sets the instance's fingerprint to
+        that result.
         """
         self._fingerprint = self.key_fingerprint(uid)
 
@@ -1647,7 +1653,7 @@ class GnuPG(BaseGnuPG):
     from tiny_gnupg import GnuPG
 
     gpg = GnuPG(
-        username="user3121",
+        username="user3121",  # Optional username
         email="spicy.salad@email.org",
         passphrase="YesAllBeautifulCats",
         executable="/path/to/binary/gpg2",  # Defaults to /usr/bin/gpg2
@@ -1662,7 +1668,7 @@ class GnuPG(BaseGnuPG):
     assert run(gpg.keyserver.search(uid))
     encrypted_message = run(gpg.auto_encrypt(message, uid=uid, sign=True))
 
-    assert gpg.decrypt(encrypted_message) == "Henlo fren!"
+    assert friends_gpg.decrypt(encrypted_message) == "Henlo fren!"
 
 
     from hashlib import sha3_256
@@ -1671,13 +1677,13 @@ class GnuPG(BaseGnuPG):
         digest = sha3_256(document.read()).hexdigest()
         signed_document = gpg.sign(digest)
 
-    assert gpg.verify(signed_document)
+    assert digest == gpg.decrypt(signed_document)
     """
 
     def __init__(
         self,
         *,
-        username: str,
+        username: str = "",  # Optional
         email: str,
         passphrase: str,
         homedir: Union[Path, str, NoneType] = None,

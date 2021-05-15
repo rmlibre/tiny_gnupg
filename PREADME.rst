@@ -75,18 +75,16 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
 
     gpg = GnuPG( 
-    
-        username="username", 
         
-        email="username@user.net", 
+        email="bob@user.net", 
         
         passphrase="test_user_passphrase", 
         
         executable=PATH_TO_GPG_BINARY, 
     
     ) 
-
-
+    
+    
     # This will generate a primary ed25519 ECC certifying key, and three 
     
     # subkeys, one each for the authentication, encryption, and signing 
@@ -94,13 +92,13 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     # functionalities. 
     
     gpg.generate_key() 
-
-
+    
+    
     # Now this fingerprint can be used with arbitrary gpg2 commands. 
     
     gpg.fingerprint 
-
-
+    
+    
     # But the key is stored in the package's local keyring. To 
     
     # talk to the package's gpg environment, an arbitrary command 
@@ -114,8 +112,8 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     inputs = gpg.encode_inputs("Message to myself") 
     
     encrypted_message = gpg.read_output(command, inputs) 
-
-
+    
+    
     # If a command would invoke the need for a passphrase, the 
     
     # with_passphrase kwarg should be set to True -> 
@@ -142,8 +140,8 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     
     # information is known, like an email address or fingerprint -> 
     
-    gpg.list_keys("username@user.net") 
-    >>> {"EE36F0584971280730D76CEC94A470B77ABA6E81": "username@user.net"} 
+    gpg.list_keys("bob@user.net") 
+    >>> {"EE36F0584971280730D76CEC94A470B77ABA6E81": "bob@user.net"} 
 
 
     # Let's try encrypting a message to Alice, whose public key is 
@@ -157,7 +155,7 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     
     # attribute set to 9150) ->
 
-    # Optional: gpg.network.tor_port = 9150
+    # Optional: gpg.keyserver.network.tor_port = 9150
     
     run(gpg.network_import(uid="alice@email.domain")) 
     
@@ -190,14 +188,14 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
     
     # message can be verified. So let's upload it to the keyserver -> 
     
-    run(gpg.network_export(uid=gpg.fingerprint)) 
+    run(gpg.network_export(uid="bob@user.net")) 
     
 
     # Alice could now import our key (after we do an email verification 
     
     # with the keyserver) -> 
     
-    run(gpg.network_import("username@user.net")) 
+    run(gpg.network_import("bob@user.net")) 
     
 
     # Then Alice can simply receive the encrypted message and decrypt it -> 
@@ -301,9 +299,7 @@ _`Networking Examples`
 
     gpg = GnuPG(
     
-        username="username", 
-        
-        email="username@user.net", 
+        email="bob@user.net", 
         
         passphrase="test_user_passphrase", 
     
@@ -384,15 +380,7 @@ _`More Commands`
 
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
     
-    user = User( 
-    
-        username="username", 
-        
-        email="username@user.net", 
-        
-        passphrase="test_user_passphrase", 
-
-    ) 
+    user = User(email="bob@user.net", passphrase="test_user_passphrase") 
 
     config = GnuPGConfig(executable=PATH_TO_GPG_BINARY, torify=True) 
 
@@ -487,7 +475,7 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     
     gpg = GnuPG( 
     
-        email="username@user.net", 
+        email="bob@user.net", 
         
         passphrase="test_user_passphrase", 
         
@@ -500,9 +488,7 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     
     # (the keyserver can't currently handle key revocations) -> 
     
-    gpg.revoke(gpg.fingerprint) 
-    
-    key = gpg.text_export(gpg.fingerprint)  # <--  Distribute this! 
+    revoked_key = gpg.revoke(gpg.fingerprint)  # <--  Distribute this! 
 
 
     # Uploading the revoked key will only strip the user ID information 
@@ -516,7 +502,7 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
     # The key can also be deleted from the package keyring like this -> 
     
-    gpg.delete(uid="username@user.net") 
+    gpg.delete(uid="bob@user.net") 
 
 
 .. _key revocations: https://gitlab.com/hagrid-keyserver/hagrid/issues/137

@@ -38,7 +38,6 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type="text/x-rst",
-    url="https://github.com/rmlibre/tiny_gnupg",
     author="Gonzo Investigative Journalism Agency, LLC",
     author_email="gonzo.development@protonmail.ch",
     maintainer="Gonzo Investigative Journalism Agency, LLC",
