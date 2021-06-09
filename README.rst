@@ -23,9 +23,6 @@ to change. Contributions are welcome.
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://img.shields.io/badge/code%20style-black-000000.svg
 
-.. image:: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
-    :target: https://raw.githubusercontent.com/rmlibre/tiny_gnupg/master/tests/coverage.svg?sanitize=true
-
 .. image:: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
     :target: https://github.com/rmlibre/tiny_gnupg/workflows/Python%20package/badge.svg
 
@@ -76,9 +73,9 @@ The ``GnuPG`` class's instances are the primary interface for running commands &
 
     gpg = GnuPG( 
         
-        email="bob@user.net", 
+        email_address="bob@user.net", 
         
-        passphrase="test_user_passphrase", 
+        passphrase="bobs's passphrase", 
         
         executable=PATH_TO_GPG_BINARY, 
     
@@ -297,13 +294,7 @@ _`Networking Examples`
             return await response.text() 
 
 
-    gpg = GnuPG(
-    
-        email="bob@user.net", 
-        
-        passphrase="test_user_passphrase", 
-    
-    ) 
+    gpg = GnuPG(email_address="bob@user.net", passphrase="bobs's passphrase")
     
     gpg.generate_key() 
     
@@ -374,19 +365,22 @@ _`More Commands`
 .. code:: python
 
     # An instance can also be constructed from lower-level objects -> 
-
+    
     from tiny_gnupg import BaseGnuPG, User, GnuPGConfig, run 
-
-
+    
+    
     PATH_TO_GPG_BINARY = "/usr/bin/gpg2" 
     
-    user = User(email="bob@user.net", passphrase="test_user_passphrase") 
-
+    
+    # Passphrases can contain any characters, even emojis -> 
+    
+    user = User(email_address="bob@user.net", passphrase="✅🐎🔋📌") 
+    
     config = GnuPGConfig(executable=PATH_TO_GPG_BINARY, torify=True) 
-
+    
     gpg = BaseGnuPG(user, config=config) 
     
-
+    
     # It turns out that the encrypt() method automatically signs the 
     
     # message being encrypted. So, the `sign=False` flag only has to be 
@@ -434,12 +428,16 @@ _`More Commands`
     
     # As well as exporting public keys -> 
     
-    gpg.file_export(path=path_to_file, uid=gpg.user.email) 
+    gpg.file_export(path=path_to_file, uid=gpg.user.email_address) 
     
     
     # And secret keys, but really, keep those safe! -> 
     
-    gpg.file_export(path=path_to_file, uid=gpg.user.email, secret=True) 
+    gpg.file_export(
+    
+        path=path_to_file, uid=gpg.user.email_address, secret=True
+    
+    ) 
     
 
     # The keys don't have to be exported to a file. Instead they can 
@@ -475,31 +473,31 @@ After a user no longer considers a key useful, or wants to dissociate from the k
     
     gpg = GnuPG( 
     
-        email="bob@user.net", 
+        email_address="bob@user.net", 
         
-        passphrase="test_user_passphrase", 
+        passphrase="bobs's passphrase", 
         
         executable=PATH_TO_GPG_BINARY, 
         
     ) 
-
-
+    
+    
     # They can revoke their key then distribute it publicly (somehow) 
     
     # (the keyserver can't currently handle key revocations) -> 
     
     revoked_key = gpg.revoke(gpg.fingerprint)  # <--  Distribute this! 
-
-
+    
+    
     # Uploading the revoked key will only strip the user ID information 
-
+    
     # from the key on the keyserver. It won't explicitly let others know 
-
+    
     # the key has been retired. However, this action cannot be undone -> 
-
+    
     run(gpg.network_export(gpg.fingerprint)) 
     
-
+    
     # The key can also be deleted from the package keyring like this -> 
     
     gpg.delete(uid="bob@user.net") 
@@ -571,6 +569,67 @@ After a user no longer considers a key useful, or wants to dissociate from the k
 
 ``Changelog`` 
 ============= 
+
+
+Changes for version 0.9.0 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  The ``passphrase`` keyword argument is now processed through the 
+   ``hashlib.scrypt`` function before being stored within a ``User`` instance 
+   & used within the ``GnuPG`` & ``BaseGnuPG`` classes. The ``GnuPG`` & ``BaseGnuPG`` 
+   classes also accept an optional ``salt`` keyword-only argument. These 
+   changes secure user keys & passwords by default with a memory-hard 
+   key derivation function & the uniqueness of the user-specified random 
+   salt. These changes provide better security & aren't backwards 
+   compatible. 
+-  The ``email`` keyword argument to the ``User``, ``BaseGnuPG`` & ``GnuPG`` 
+   classes was changed to ``email_address``. The attributes in the ``User`` 
+   class have also mirrored this change. As well, the ``key_email`` method 
+   on the ``GnuPG`` & ``BaseGnuPG`` classes is now ``key_email_address``. 
+-  The ``User`` class now does type & value checking on the ``username``, 
+   ``email_address`` & ``passphrase`` strings passed into the ``__init__``, 
+   as well as whenever their associated property attributes are set. 
+
+
+Minor Changes 
+------------- 
+
+-  Documentation improvements. 
+-  Various refactorings & code cleanups. 
+-  More type hinting was added & improved upon. 
+-  Removed the improper usage of the ``NoneType`` for type hinting. 
+-  New constants were added to the ``tiny_gnupg.py`` module to specify 
+   problematic control & whitespace characters that shouldn't be used in 
+   various user-defined inputs & credentials. 
+-  The ``file_export`` methods of the ``GnuPG`` & ``BaseGnuPG`` classes now 
+   saves key files with either ``"public-key_"`` or ``"secret-key_"`` strings 
+   prepended to them to better specify for users the context of files 
+   saved to their filesystems. 
+-  Removed the svg image file which didn't accurately report the line 
+   coverage with the new changes to the package. 
+
+
+
+
+Changes for version 0.8.2 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Documentation improvements. 
+-  The ``username`` keyword-only argument to the ``User`` & ``GnuPG`` classes 
+   was given a default empty string. This change allows the ``username`` 
+   to be optional & ignorable by the user. When generating a key with an 
+   instance which doesn't have a ``username`` specified, then the associated 
+   key will also not contain a username field. 
+
+
 
 
 Changes for version 0.8.1 

@@ -35,16 +35,20 @@ import json
 import asyncio
 from shlex import quote
 from pathlib import Path
+from string import whitespace
 from aiohttp import ClientSession
+from hashlib import scrypt, sha3_512
 from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 from aiocontext import async_contextmanager
 from aiohttp_socks import ProxyConnector, ProxyType
-from typing import Any, Hashable, Iterable, Union, Dict, Callable
+from typing import Any, Hashable, Iterable, Union, Optional, Dict, Callable
 
 
-NoneType = type(None)
 run = asyncio.get_event_loop().run_until_complete
+CONTROL_CHARACTERS = set("\x07\b\t\xa0\xc0\xd0\x1b\\")
+PROBLEM_CHARACTERS = CONTROL_CHARACTERS.union(whitespace).difference(" ")
+PROBLEM_URL_CHARACTERS = PROBLEM_CHARACTERS.union(" <>")
 
 
 class User:
@@ -52,10 +56,94 @@ class User:
     A small type for holding `GnuPG` user instance information.
     """
 
-    def __init__(self, *, username: str = "", email: str, passphrase: str):
-        self.email = email
+    _SCRYPT_SETTINGS = dict(n=2**14, r=8, p=1)
+    _PASSPHRASE_HASH_DOMAIN = b"gnupg passphrase:"
+
+    @classmethod
+    def _hash_passphrase(cls, salted_passphrase: bytes):
+        """
+        Returns the result of running the `scrypt` algorithm over the
+        user's hashed, bytes encoded passphrase.
+        """
+        domain = cls._PASSPHRASE_HASH_DOMAIN
+        passphrase_hash = sha3_512(domain + salted_passphrase).digest()
+        inputs = dict(password=passphrase_hash, salt=passphrase_hash)
+        return scrypt(**inputs, **cls._SCRYPT_SETTINGS)
+
+    def __init__(
+        self,
+        *,
+        username: str = "",  # Optional
+        email_address: str,
+        passphrase: str,
+        salt: str = "",  # Recommended
+    ):
+        """
+        Populates user information into the instance & uses property
+        setters to process the given strings for safe usage.
+        """
         self.username = username
-        self.passphrase = passphrase
+        self.email_address = email_address
+        self.passphrase = salt + passphrase
+
+    @property
+    def username(self):
+        """
+        Returns the user's username string.
+        """
+        return self._username
+
+    @username.setter
+    def username(self, value: str):
+        """
+        Sets the user's username string after checking it for characters
+        which may cause security issues when sent to the terminal.
+        """
+        if value.__class__ != str:
+            raise Issue.username_isnt_a_string(value)
+        elif PROBLEM_CHARACTERS.intersection(value):
+            raise Issue.used_problematic_character("username", value)
+        self._username = value
+
+    @property
+    def email_address(self):
+        """
+        Returns the user's email address string.
+        """
+        return self._email_address
+
+    @email_address.setter
+    def email_address(self, value: str):
+        """
+        Sets the user's email address string after checking it for
+        characters which may cause security issues when sent to the
+        terminal.
+        """
+        if value.__class__ != str:
+            raise Issue.email_address_isnt_a_string(value)
+        elif PROBLEM_CHARACTERS.intersection(value):
+            raise Issue.used_problematic_character("email address", value)
+        self._email_address = value.replace(" ", "")
+
+    @property
+    def passphrase(self):
+        """
+        Returns the hex hash of the user's passphrase string. This hash
+        is used instead of the raw passphrase string passed by the user.
+        """
+        return self._passphrase
+
+    @passphrase.setter
+    def passphrase(self, value: str):
+        """
+        Store an `scrypt` hash of the user's passphrase string to better
+        protect private keys & user passphrases. The ``value`` should
+        also be prepended by a random salt with at least 16 bytes of
+        entropy.
+        """
+        if value.__class__ != str:
+            raise Issue.passphrase_isnt_a_string(value)
+        self._passphrase = self._hash_passphrase(value.encode()).hex()
 
 
 class GnuPGConfig:
@@ -75,9 +163,9 @@ class GnuPGConfig:
     def __init__(
         self,
         *,
-        homedir: Union[Path, str, NoneType] = None,
-        options: Union[Path, str, NoneType] = None,
-        executable: Union[Path, str, NoneType] = None,
+        homedir: Optional[Union[Path, str]] = None,
+        options: Optional[Union[Path, str]] = None,
+        executable: Optional[Union[Path, str]] = None,
         torify: bool = False,
     ):
         """
@@ -111,9 +199,7 @@ class GnuPGConfig:
             if subpath.is_dir():
                 cls._set_permissions_recursively(subpath, permissions)
 
-    def _set_homedir_permissions(
-        self, permissions: Union[int, NoneType] = None
-    ):
+    def _set_homedir_permissions(self, permissions: Optional[int] = None):
         """
         Set safer permissions on the home directory.
         """
@@ -125,9 +211,9 @@ class GnuPGConfig:
 
     def set_homedir(
         self,
-        path: Union[Path, str, NoneType] = None,
+        path: Optional[Union[Path, str]] = None,
         *,
-        permissions: Union[int, NoneType] = None,
+        permissions: Optional[int] = None,
     ):
         """
         Initialize a home directory path object for gpg2 data to be
@@ -142,7 +228,7 @@ class GnuPGConfig:
         self._homedir = path
         self._set_homedir_permissions(permissions)
 
-    def set_options(self, path: Union[Path, str, NoneType] = None):
+    def set_options(self, path: Optional[Union[Path, str]] = None):
         """
         Initialize a path object to the gpg2 .conf config file.
         """
@@ -154,7 +240,7 @@ class GnuPGConfig:
             raise Issue.dot_conf_file_doesnt_exist(path)
         self._options = path
 
-    def set_executable(self, path: Union[Path, str, NoneType] = None):
+    def set_executable(self, path: Optional[Union[Path, str]] = None):
         """
         Initialize a path object to the gpg2 executable binary.
         """
@@ -209,10 +295,7 @@ class Network:
     _ProxyConnector = ProxyConnector
 
     def __init__(
-        self,
-        *,
-        port: Union[int, NoneType] = None,
-        tor_port: Union[int, NoneType] = None,
+        self, *, port: Optional[int] = None, tor_port: Optional[int] = None
     ):
         """
         Sets the instance's port values.
@@ -220,14 +303,14 @@ class Network:
         self._set_port(port)
         self._set_tor_port(tor_port)
 
-    def _set_port(self, port: Union[int, NoneType] = None):
+    def _set_port(self, port: Optional[int] = None):
         """
         Sets the receiving port used by the contacted resources on the
         web.
         """
         self.port = int(port) if port else self._DEFAULT_PORT
 
-    def _set_tor_port(self, port: Union[int, NoneType] = None):
+    def _set_tor_port(self, port: Optional[int] = None):
         """
         Sets the Tor SOCKS5 proxy port.
         """
@@ -247,9 +330,7 @@ class Network:
             **kw,
         )
 
-    def Session(
-        self, *, connector: Union[ProxyConnector, NoneType] = None, **kw
-    ):
+    def Session(self, *, connector: Optional[ProxyConnector] = None, **kw):
         """
         Autoconstruct an `aiohttp.ClientSession` instance.
         """
@@ -308,21 +389,24 @@ class Keyserver:
     )
 
     @staticmethod
-    def _quick_cleanup_for_url(string: str, *, tokens="\n\t\r\\ "):
+    def _quick_cleanup_for_url(
+        string: str, *, tokens: Optional[str] = None
+    ):
         """
         Removes whitespace & problem ``tokens`` from a url ``string``
         as well as trailing slashes, then returns the new string.
         """
+        tokens = tokens if tokens else PROBLEM_URL_CHARACTERS
         for token in tokens:
             string = string.replace(token, "")
         return string.strip("/")
 
     def __init__(
         self,
-        hostname: Union[str, NoneType] = None,
+        hostname: Optional[str] = None,
         *,
-        network: Union[Network, NoneType] = None,
-        search_prefix: Union[str, NoneType] = None,
+        network: Optional[Network] = None,
+        search_prefix: Optional[str] = None,
     ):
         """
         Set network variables for adaptable implementations.
@@ -331,7 +415,7 @@ class Keyserver:
         self._set_hostname(hostname)
         self._set_search_prefix(search_prefix)
 
-    def _set_network(self, network: Union[Network, NoneType]):
+    def _set_network(self, network: Optional[Network]):
         """
         Sets & assures the instance's network object is a valid subclass
         of this module's `Network` class.
@@ -343,7 +427,7 @@ class Keyserver:
         else:
             self.network = network
 
-    def _set_hostname(self, hostname: Union[str, NoneType]):
+    def _set_hostname(self, hostname: Optional[str]):
         """
         Set's the instance's hostname url string to the keyserver on the
         web.
@@ -353,7 +437,7 @@ class Keyserver:
         )
         self._raw_hostname = self._quick_cleanup_for_url(hostname)
 
-    def _set_search_prefix(self, prefix: Union[str, NoneType]):
+    def _set_search_prefix(self, prefix: Optional[str]):
         """
         Sets the instance's search prefix string. It's appended to the
         hostname string & it instructs the keyserver that the text
@@ -544,7 +628,13 @@ class Terminal:
         return
 
     @staticmethod
-    def enter(command: Iterable[str], inputs=b"", *, decode=True, **kw):
+    def enter(
+        command: Iterable[str],
+        inputs: bytes = b"",
+        *,
+        decode: bool = True,
+        **kw,
+    ):
         """
         Quotes terminal escape characters & runs user commands.
         """
@@ -556,8 +646,8 @@ class Terminal:
     def __init__(
         self,
         *,
-        if_exception: Union[Callable, NoneType] = None,
-        finally_run: Union[Callable, NoneType] = None,
+        if_exception: Optional[Callable] = None,
+        finally_run: Optional[Callable] = None,
     ):
         """
         Inserts methods into the instance which will be run after the
@@ -800,6 +890,19 @@ class Issue:
     `GnuPG` class when general issues are encountered.
     """
 
+    _EMAIL_ADDRESS_ISNT_A_STRING = (
+        "type(``email_address``) != str. A _TYPE_ was given instead."
+    )
+    _USERNAME_ISNT_A_STRING = (
+        "type(``username``) != str. A _TYPE_ was given instead."
+    )
+    _PASSPHRASE_ISNT_A_STRING = (
+        "type(``passphrase``) != str. A _TYPE_ was given instead."
+    )
+    _USED_PROBLEMATIC_CHARACTER = (
+        "The _NAME_ string contains _PROBLEM_ characters. Harmful error"
+        "s may occur if they aren't removed."
+    )
     _USER_OBJECT_MUST_BE_A_VALID_SUBCLASS = (
         "issubclass(``user``.__class__, User) != True. A _TYPE_ was "
         "given instead."
@@ -844,6 +947,44 @@ class Issue:
         "Key UID '_UID_' has fewer than the minimum allowed number of "
         "characters."
     )
+
+    @classmethod
+    def username_isnt_a_string(cls, username: str):
+        """
+        A username supplied to a `User` instance must be of type `str`.
+        """
+        username_type = str(type(username))
+        issue = cls._USERNAME_ISNT_A_STRING
+        return TypeError(issue.replace("_TYPE_", username_type))
+
+    @classmethod
+    def email_address_isnt_a_string(cls, email_address: str):
+        """
+        An email address supplied to a `User` instance must be of type
+        `str`.
+        """
+        email_address_type = str(type(email_address))
+        issue = cls._EMAIL_ADDRESS_ISNT_A_STRING
+        return TypeError(issue.replace("_TYPE_", email_address_type))
+
+    @classmethod
+    def passphrase_isnt_a_string(cls, passphrase: str):
+        """
+        A passphrase supplied to a `User` instance must be of type `str`.
+        """
+        passphrase_type = str(type(passphrase))
+        issue = cls._PASSPHRASE_ISNT_A_STRING
+        return TypeError(issue.replace("_TYPE_", passphrase_type))
+
+    @classmethod
+    def used_problematic_character(cls, name: str, value: str):
+        """
+        """
+        characters = "".join(PROBLEM_CHARACTERS.intersection(value))
+        issue = cls._USED_PROBLEMATIC_CHARACTER
+        issue = issue.replace("_NAME_", name)
+        issue = issue.replace("_PROBLEM_", repr(characters))
+        return ValueError(issue)
 
     @classmethod
     def invalid_user_object_type(cls, user: Any):
@@ -990,7 +1131,7 @@ class Issue:
 
 class BaseGnuPG:
     """
-    BaseGnuPG - A linux-specific, small, simple & intuitive wrapper for
+    `GnuPG` - A linux-specific, small, simple & intuitive wrapper for
     creating, using and managing GnuPG's Ed25519 curve keys. This class
     favors reducing code size & complexity with strong, bias defaults
     over flexibility in the API. It's designed to turn the complex,
@@ -998,11 +1139,11 @@ class BaseGnuPG:
 
     Usage Example:
 
-    from tiny_gnupg import BaseGnuPG, User, GnuPGConfig
+    from tiny_gnupg import BaseGnuPG, User, GnuPGConfig, run
 
     user = User(
         username="user3121",  # Optional username
-        email="spicy.salad@email.org",
+        email_address="spicy.salad@email.org",
         passphrase="YesAllBeautifulCats",
     )
     config = GnuPGConfig(
@@ -1036,7 +1177,7 @@ class BaseGnuPG:
     """
 
     def __init__(
-        self, user: User, *, config: Union[GnuPGConfig, NoneType] = None
+        self, user: User, *, config: Optional[GnuPGConfig] = None
     ):
         """
         Initialize an instance intended to create, manage, or represent
@@ -1046,18 +1187,18 @@ class BaseGnuPG:
         self._set_config(config)
         self.keyserver = Keyserver()
         self._reset_daemon()
-        self._set_fingerprint(self.user.email)
+        self._set_fingerprint(self.user.email_address)
 
     def _set_user(self, user: User):
         """
         Sets the user object which stores & provides access to the
-        user's username, email, & passphrase information.
+        user's username, email address, & passphrase information.
         """
         if not issubclass(user.__class__, User):
             raise Issue.invalid_user_object_type(user)
         self.user = user
 
-    def _set_config(self, config: Union[GnuPGConfig, NoneType]):
+    def _set_config(self, config: Optional[GnuPGConfig]):
         """
         Sets the config object which stores & provides access to the
         system's gpg2 binary, home directory, .conf file, & the torify
@@ -1144,7 +1285,10 @@ class BaseGnuPG:
             self._fingerprint = ""
 
     def encode_command(
-        self, *options: Iterable[str], with_passphrase=False, manual=False
+        self,
+        *options: Iterable[str],
+        with_passphrase: bool = False,
+        manual: bool = False,
     ):
         """
         Autoformats gpg2 commands soley from additional options.
@@ -1167,7 +1311,9 @@ class BaseGnuPG:
         """
         return ("\n".join(inputs) + "\n").encode()
 
-    def read_output(self, command: Iterable[str], inputs=b"", **kw):
+    def read_output(
+        self, command: Iterable[str], inputs: bytes = b"", **kw
+    ):
         """
         Quotes terminal escape characters & runs user commands.
         """
@@ -1259,7 +1405,7 @@ class BaseGnuPG:
             "3y",
             "y",
             self.user.username,
-            self.user.email,
+            self.user.email_address,
             "",
             "O",
         )
@@ -1315,7 +1461,7 @@ class BaseGnuPG:
             if sentinel in packet:
                 return packet[size]
 
-    def _raw_list_keys(self, uid="", secret=False):
+    def _raw_list_keys(self, uid: str = "", secret: bool = False):
         """
         Returns the terminal output of the --list-keys ``uid`` option,
         or `--list-secret-keys` if ``secret`` == True.
@@ -1343,11 +1489,11 @@ class BaseGnuPG:
             if "\nuid" in part
         )
         return {
-            fingerprint: self.key_email(fingerprint)
+            fingerprint: self.key_email_address(fingerprint)
             for fingerprint in fingerprints
         }
 
-    def list_keys(self, uid="", *, secret=False):
+    def list_keys(self, uid: str = "", *, secret: bool = False):
         """
         Returns a dict of fingerprints & email addresses of all keys in
         the instance's keyring, or optionally the key matching ``uid``.
@@ -1356,7 +1502,7 @@ class BaseGnuPG:
             self._raw_list_keys(uid, secret=secret), secret=secret
         )
 
-    def key_email(self, uid: str):
+    def key_email_address(self, uid: str):
         """
         Returns the email address on the key matching ``uid``.
         """
@@ -1389,7 +1535,7 @@ class BaseGnuPG:
         trust = key[key.find("\nuid[") + 5 :]
         return trust[: trust.find("]")]
 
-    def set_key_trust(self, uid: str, level=5):
+    def set_key_trust(self, uid: str, level: int = 5):
         """
         Sets the trust ``level`` of a key in the instance's keyring
         which matches ``uid``.
@@ -1439,7 +1585,14 @@ class BaseGnuPG:
         self.text_import(revocation_cert)
         return self.text_export(uid)
 
-    def encrypt(self, message: str, uid: str, *, sign=True, local_user=""):
+    def encrypt(
+        self,
+        message: str,
+        uid: str,
+        *,
+        sign: bool = True,
+        local_user: str = "",
+    ):
         """
         Encrypts ``message`` to the key matching ``uid`` & signs it with
         a key matching the ``local_user`` UID. ``local_user`` defaults
@@ -1465,7 +1618,12 @@ class BaseGnuPG:
         return self.read_output(command, inputs[:-1])
 
     async def auto_encrypt(
-        self, message: str, uid: str, *, sign=True, local_user=""
+        self,
+        message: str,
+        uid: str,
+        *,
+        sign: bool = True,
+        local_user: str = "",
     ):
         """
         Queries the keyserver before encryption if the recipient's key
@@ -1481,7 +1639,7 @@ class BaseGnuPG:
                 message, error.uid, sign=sign, local_user=local_user
             )
 
-    def decrypt(self, message: str, *, local_user=""):
+    def decrypt(self, message: str, *, local_user: str = ""):
         """
         Auto-detects the correct key from the instance's keyring to
         decrypt ``message``.
@@ -1503,7 +1661,7 @@ class BaseGnuPG:
             terminal.bus.keys = self.list_keys
             return terminal.enter(command, inputs)
 
-    async def auto_decrypt(self, message: str, *, local_user=""):
+    async def auto_decrypt(self, message: str, *, local_user: str = ""):
         """
         Queries the keyserver before decryption if the key which signed
         ``message`` isn't in the instance's keyring.
@@ -1514,7 +1672,9 @@ class BaseGnuPG:
             await self.network_import(error.uid)
             return self.decrypt(message, local_user=local_user)
 
-    def sign(self, target="", *, key=False, local_user=""):
+    def sign(
+        self, target: str, *, key: bool = False, local_user: str = ""
+    ):
         """
         Signs the ``target`` message using a key which matches the
         ``local_user`` UID, but defaults to the instance's key.
@@ -1541,8 +1701,8 @@ class BaseGnuPG:
                 "-as",
                 with_passphrase=True,
             )
-            inputs = self.encode_inputs(self.user.passphrase, target)[:-1]
-            return self.read_output(command, inputs)
+            inputs = self.encode_inputs(self.user.passphrase, target)
+            return self.read_output(command, inputs[:-1])
 
     def verify(self, message: str):
         """
@@ -1573,8 +1733,8 @@ class BaseGnuPG:
         """
         Imports the ``key`` string into the instance's keyring.
         """
-        inputs = self.encode_inputs(key)
         command = self.encode_command("--import")
+        inputs = self.encode_inputs(key)
         with Terminal(if_exception=Error.key_isnt_importable) as terminal:
             terminal.bus.key = key
             terminal.bus.uid = self._packet_fingerprint(key)
@@ -1594,7 +1754,7 @@ class BaseGnuPG:
         key = await self.keyserver.download_key(uid)
         self.text_import(key)
 
-    def text_export(self, uid: str, *, secret=False):
+    def text_export(self, uid: str, *, secret: bool = False):
         """
         Returns a public key string that matches ``uid``. Optionally,
         returns the secret key as a string that matches ``uid`` if
@@ -1614,16 +1774,17 @@ class BaseGnuPG:
             return Terminal.enter(command)
 
     def file_export(
-        self, path: Union[Path, str], uid: str, *, secret=False
+        self, path: Union[Path, str], uid: str, *, secret: bool = False
     ):
         """
         Exports the public key matching ``uid`` to the ``path`` directory.
         If ``secret`` == True then exports the secret key that matches
         ``uid``.
         """
+        context = "secret-key_" if secret else "public-key_"
         uid = self.key_fingerprint(uid)
         key = self.text_export(uid, secret=secret)
-        filename = Path(path).absolute() / (uid + ".asc")
+        filename = Path(path).absolute() / f"{context + uid}.asc"
         with open(filename, "w+") as keyfile:
             keyfile.write(key)
 
@@ -1632,7 +1793,7 @@ class BaseGnuPG:
         Exports the key matching ``uid`` to the keyserver.
         """
         key = self.text_export(uid)
-        email_address = self.key_email(uid)
+        email_address = self.key_email_address(uid)
         return await self.keyserver.upload_key(email_address, key)
 
 
@@ -1650,11 +1811,11 @@ class GnuPG(BaseGnuPG):
 
     Usage Example:
 
-    from tiny_gnupg import GnuPG
+    from tiny_gnupg import GnuPG, run
 
     gpg = GnuPG(
         username="user3121",  # Optional username
-        email="spicy.salad@email.org",
+        email_address="spicy.salad@email.org",
         passphrase="YesAllBeautifulCats",
         executable="/path/to/binary/gpg2",  # Defaults to /usr/bin/gpg2
     )
@@ -1684,11 +1845,12 @@ class GnuPG(BaseGnuPG):
         self,
         *,
         username: str = "",  # Optional
-        email: str,
+        email_address: str,
         passphrase: str,
-        homedir: Union[Path, str, NoneType] = None,
-        options: Union[Path, str, NoneType] = None,
-        executable: Union[Path, str, NoneType] = None,
+        salt: str = "",  # Recommended
+        homedir: Optional[Union[Path, str]] = None,
+        options: Optional[Union[Path, str]] = None,
+        executable: Optional[Union[Path, str]] = None,
         torify: bool = False,
     ):
         """
@@ -1697,12 +1859,17 @@ class GnuPG(BaseGnuPG):
         semantically organize & separate the concerns of different areas
         of the codebase.
         """
-        user = User(username=username, email=email, passphrase=passphrase)
         config = GnuPGConfig(
             homedir=homedir,
             options=options,
             executable=executable,
             torify=torify,
+        )
+        user = User(
+            username=username,
+            email_address=email_address,
+            passphrase=passphrase,
+            salt=salt,
         )
         super().__init__(user=user, config=config)
 

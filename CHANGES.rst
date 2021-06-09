@@ -61,6 +61,67 @@
 ============= 
 
 
+Changes for version 0.9.0 
+========================= 
+
+
+Major Changes 
+------------- 
+
+-  The ``passphrase`` keyword argument is now processed through the 
+   ``hashlib.scrypt`` function before being stored within a ``User`` instance 
+   & used within the ``GnuPG`` & ``BaseGnuPG`` classes. The ``GnuPG`` & ``BaseGnuPG`` 
+   classes also accept an optional ``salt`` keyword-only argument. These 
+   changes secure user keys & passwords by default with a memory-hard 
+   key derivation function & the uniqueness of the user-specified random 
+   salt. These changes provide better security & aren't backwards 
+   compatible. 
+-  The ``email`` keyword argument to the ``User``, ``BaseGnuPG`` & ``GnuPG`` 
+   classes was changed to ``email_address``. The attributes in the ``User`` 
+   class have also mirrored this change. As well, the ``key_email`` method 
+   on the ``GnuPG`` & ``BaseGnuPG`` classes is now ``key_email_address``. 
+-  The ``User`` class now does type & value checking on the ``username``, 
+   ``email_address`` & ``passphrase`` strings passed into the ``__init__``, 
+   as well as whenever their associated property attributes are set. 
+
+
+Minor Changes 
+------------- 
+
+-  Documentation improvements. 
+-  Various refactorings & code cleanups. 
+-  More type hinting was added & improved upon. 
+-  Removed the improper usage of the ``NoneType`` for type hinting. 
+-  New constants were added to the ``tiny_gnupg.py`` module to specify 
+   problematic control & whitespace characters that shouldn't be used in 
+   various user-defined inputs & credentials. 
+-  The ``file_export`` methods of the ``GnuPG`` & ``BaseGnuPG`` classes now 
+   saves key files with either ``"public-key_"`` or ``"secret-key_"`` strings 
+   prepended to them to better specify for users the context of files 
+   saved to their filesystems. 
+-  Removed the svg image file which didn't accurately report the line 
+   coverage with the new changes to the package. 
+
+
+
+
+Changes for version 0.8.2 
+========================= 
+
+
+Minor Changes 
+------------- 
+
+-  Documentation improvements. 
+-  The ``username`` keyword-only argument to the ``User`` & ``GnuPG`` classes 
+   was given a default empty string. This change allows the ``username`` 
+   to be optional & ignorable by the user. When generating a key with an 
+   instance which doesn't have a ``username`` specified, then the associated 
+   key will also not contain a username field. 
+
+
+
+
 Changes for version 0.8.1 
 ========================= 
 

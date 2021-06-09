@@ -146,12 +146,12 @@ PzNx/ZogrbmOMOWsTCC1DFycAjCRtueMDG83FVl0zdX0fFR5cZnRdxde+Y6oyZ6u
 
 @pytest.fixture(scope="module")
 def gpg():
-    global _homedir, _options, _executable
+    global _homedir, _options, _executable, main_passphrase
     print("setup".center(15, "-"))
 
     username = "testing_user"
-    email = "testing_user@testing.testing"
-    passphrase = "test_passphrase"
+    email_address = "testing_user@testing.testing"
+    main_passphrase = "test_passphrase"
 
     tempdir = TemporaryDirectory("testing_tiny_gnupg")
     _homedir = Path(tempdir.name).absolute()
@@ -159,9 +159,9 @@ def gpg():
     _executable = GnuPGConfig._DEFAULT_EXECUTABLE_PATH
 
     gpg = GnuPG(
-        email=email,
+        email_address=email_address,
         username=username,
-        passphrase=passphrase,
+        passphrase=main_passphrase,
         homedir=_homedir,
         options=_options,
         executable=_executable,
@@ -184,7 +184,7 @@ async def async_method_runner(gpg):
 def test_instance(gpg):
     while True:
         try:
-            gpg.delete(gpg.email)
+            gpg.delete(gpg.user.email_address)
         except:
             break
     try:
@@ -201,9 +201,9 @@ def test_instance(gpg):
 
     gpg.generate_key()
     user = User(
-        email=gpg.user.email,
+        email_address=gpg.user.email_address,
         username=gpg.user.username,
-        passphrase=gpg.user.passphrase,
+        passphrase=main_passphrase,
     )
     config = GnuPGConfig(
         homedir=_homedir,
@@ -213,7 +213,7 @@ def test_instance(gpg):
     test_gpg = BaseGnuPG(user, config=config)
     test_gpg.generate_key()
     assert gpg.user.username == test_gpg.user.username
-    assert gpg.user.email == test_gpg.user.email
+    assert gpg.user.email_address == test_gpg.user.email_address
     assert gpg.user.passphrase == test_gpg.user.passphrase
     assert gpg.keyserver.network.port == test_gpg.keyserver.network.port
     assert gpg.keyserver.network.tor_port == test_gpg.keyserver.network.tor_port
@@ -236,8 +236,8 @@ def test_instance(gpg):
     assert gpg.config.homedir.endswith("testing_tiny_gnupg")
     assert gpg.user.username == "testing_user"
     assert gpg.config.executable.endswith("gpg2")
-    assert gpg.user.passphrase == "test_passphrase"
-    assert gpg.user.email == "testing_user@testing.testing"
+    assert gpg.user.passphrase == User._hash_passphrase(b"test_passphrase").hex()
+    assert gpg.user.email_address == "testing_user@testing.testing"
     assert gpg.fingerprint in gpg.list_keys()
     assert gpg.fingerprint in gpg.list_keys(secret=True)
     assert test_gpg.fingerprint in gpg.list_keys()
@@ -308,7 +308,7 @@ def test_isolated_identities(gpg):
 
         user = User(
             username="anon_user",
-            email="anonymous@testing.testing",
+            email_address="anonymous@testing.testing",
             passphrase="test_passphrase",  # identities are isolated only if
                                          # their passwords are NOT the same!
         )
@@ -361,7 +361,7 @@ def test_isolated_identities(gpg):
             assert failed
         while True:
             try:
-                anon.delete(anon.email)
+                anon.delete(anon.user.email_address)
             except:
                 break
 
@@ -430,11 +430,11 @@ def test_cipher(gpg):
         assert failed
     ###
     username = "test_sender"
-    email = "test_sender@testing.testing"
+    email_address = "test_sender@testing.testing"
     passphrase = "test_sender_passphrase"
 
     user = User(
-        email=email,
+        email_address=email_address,
         username=username,
         passphrase=passphrase,
     )
@@ -463,7 +463,7 @@ def test_cipher(gpg):
 
 def test_file_io(gpg):
     path = Path(gpg.config.homedir).absolute()
-    file_path = str(path / f"{gpg.fingerprint}.asc")
+    file_path = str(path / f"public-key_{gpg.fingerprint}.asc")
     key = gpg.text_export(gpg.fingerprint)
     gpg.file_export(path, gpg.fingerprint)
     gpg.file_import(file_path)
@@ -484,7 +484,7 @@ def test_networking(gpg):
     fingerprint = gpg.key_fingerprint(dev_email)
     assert dev_fingerprint == fingerprint
     assert fingerprint in gpg.list_keys(dev_fingerprint)
-    email = gpg.key_email(fingerprint)
+    email = gpg.key_email_address(fingerprint)
     assert dev_email == email
     assert email == gpg.list_keys(dev_email)[fingerprint]
     key_from_email = gpg.text_export(email)
@@ -679,7 +679,7 @@ def test_auto_fetch_methods(gpg):
     except Exception as exception:
         failed = True
         keyid = exception.uid
-        assert gpg.key_email(keyid) == gpg.key_email(keyserver_email)
+        assert gpg.key_email_address(keyid) == gpg.key_email_address(keyserver_email)
     finally:
         assert failed  # signed message shows only recipient from the
         # outside (without the decryption key).
