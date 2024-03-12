@@ -17,8 +17,9 @@ to change. Contributions are welcome.
 .. image:: https://badge.fury.io/py/tiny-gnupg.svg
     :target: https://badge.fury.io/py/tiny-gnupg
 
-.. image:: https://img.shields.io/github/license/rmlibre/tiny_gnupg
-    :alt: GitHub
+.. image:: https://img.shields.io/badge/License-GPL%20v3-red.svg
+    :target: https://img.shields.io/badge/License-GPL%20v3-red.svg
+    :alt: license
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://img.shields.io/badge/code%20style-black-000000.svg
